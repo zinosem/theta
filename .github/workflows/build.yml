@@ -1,0 +1,151 @@
+name: Build Theta for iOS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      ipa_url:
+        description: 'URL direct de l IPA Instagram décrypté (ex: DecryptDay / Archive.org / etc.)'
+        required: false
+        default: ''
+      release:
+        description: 'Créer une release GitHub publique avec les fichiers'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Compile Theta & Patch IPA
+    runs-on: macos-14
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Theos & SDK
+        run: |
+          export THEOS=$HOME/theos
+          echo "THEOS=$THEOS" >> $GITHUB_ENV
+          
+          echo "Cloning Theos..."
+          git clone --recursive https://github.com/theos/theos.git $THEOS
+          
+          echo "Extracting iOS 14.5 Patched SDK..."
+          mkdir -p "$THEOS/sdks"
+          tar -xJf sdks/iPhoneOS14.5.sdk.tar.xz -C "$THEOS/sdks"
+          
+          echo "Setting up Xcode Toolchain symlink..."
+          mkdir -p "$THEOS/toolchain"
+          XCODE_TC=$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain
+          ln -sf "$XCODE_TC" "$THEOS/toolchain/Xcode14.xctoolchain"
+          
+          echo "Testing clang toolchain..."
+          "$THEOS/toolchain/Xcode14.xctoolchain/usr/bin/clang" --version
+
+      - name: Build Jailbreak Packages (Rootful & Rootless)
+        run: |
+          chmod +x build.sh
+          echo "Building rootful..."
+          ./build.sh rootful || true
+          echo "Building rootless..."
+          ./build.sh rootless || true
+
+      - name: Build Sideload Dylib & Frameworks
+        run: |
+          echo "Compiling Theta for Sideload..."
+          make clean
+          make package SIDELOAD=1
+          
+          echo "Preparing standalone Sideload Bundle..."
+          mkdir -p dist/Theta_Sideload_Bundle
+          
+          # Find Theta.dylib
+          if [ -f .theos/obj/Theta.dylib ]; then
+            cp .theos/obj/Theta.dylib dist/Theta_Sideload_Bundle/
+          elif [ -f .theos/_/Library/MobileSubstrate/DynamicLibraries/Theta.dylib ]; then
+            cp .theos/_/Library/MobileSubstrate/DynamicLibraries/Theta.dylib dist/Theta_Sideload_Bundle/
+          fi
+          
+          # Extract CydiaSubstrate.framework
+          mkdir -p third_party/CydiaSubstrate.framework
+          python3 scripts/extract-substrate-from-deb.py third_party/CydiaSubstrate.framework || true
+          if [ -d third_party/CydiaSubstrate.framework ]; then
+            cp -R third_party/CydiaSubstrate.framework dist/Theta_Sideload_Bundle/
+          fi
+          
+          # Copy Resources bundle if exists
+          if [ -d ThetaResources.bundle ]; then
+            cp -R ThetaResources.bundle dist/Theta_Sideload_Bundle/
+          fi
+          
+          (cd dist && zip -r Theta_Sideload_Bundle.zip Theta_Sideload_Bundle)
+
+      - name: Download & Patch Instagram IPA (If URL Provided)
+        run: |
+          IPA_URL="${{ inputs.ipa_url }}"
+          mkdir -p input output
+          
+          if [ -n "$IPA_URL" ]; then
+            echo "Téléchargement de l'IPA depuis : $IPA_URL"
+            curl -L -o /tmp/instagram.ipa "$IPA_URL"
+          else
+            echo "Recherche d'un IPA Instagram décrypté public..."
+            # Mirror fallback si disponible
+            curl -L -o /tmp/instagram.ipa "https://archive.org/download/instagram-decrypted-ipas/Instagram_315.0.0.ipa" 2>/dev/null || true
+          fi
+          
+          if [ -f /tmp/instagram.ipa ] && [ $(stat -f%z /tmp/instagram.ipa 2>/dev/null || stat -c%s /tmp/instagram.ipa) -gt 10000000 ]; then
+            echo "Extraction de l'IPA..."
+            unzip -q /tmp/instagram.ipa -d /tmp/ig_extracted
+            if [ -d "/tmp/ig_extracted/Payload" ]; then
+              cp -R /tmp/ig_extracted/Payload input/
+              echo "Lancement de l'injection Sideload..."
+              ./build.sh sideload
+            fi
+          else
+            echo "Aucun IPA Instagram valide fourni ou téléchargeable automatiquement."
+            echo "Le bundle Theta_Sideload_Bundle.zip est prêt pour injection dans Feather/ESign/Sideloadly."
+          fi
+
+      - name: Prepare Artifacts
+        run: |
+          mkdir -p final_artifacts
+          cp packages/*.deb final_artifacts/ 2>/dev/null || true
+          cp output/*.ipa final_artifacts/ 2>/dev/null || true
+          cp dist/Theta_Sideload_Bundle.zip final_artifacts/ 2>/dev/null || true
+          ls -lah final_artifacts/
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Theta-iOS-Builds
+          path: final_artifacts/*
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: ${{ inputs.release == true || github.event_name == 'push' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Theta iOS Build #${{ github.run_number }}
+          body: |
+            ## 🚀 Theta iOS Compilation Automatique
+            
+            Fichiers disponibles dans cette version :
+            - **`Instagram_patched.ipa`** (si un IPA décrypté a été fourni / injecté) : Prêt à être signé avec votre certificat Kravasign !
+            - **`Theta_Sideload_Bundle.zip`** : Contient `Theta.dylib` + `CydiaSubstrate.framework` pour injection directe dans Feather / ESign / Sideloadly.
+            - **`*.deb`** : Packages pour appareils jailbreakés (rootful / rootless).
+          files: final_artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
