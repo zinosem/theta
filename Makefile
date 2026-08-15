@@ -40,13 +40,12 @@ else
 endif
 
 Theta_CFLAGS += -fobjc-arc \
-	-fno-modules \
 	-Wno-unused-variable -Wno-unused-value -Wno-deprecated-declarations \
 	-Wno-nullability-completeness -Wno-unused-function -Wno-incompatible-pointer-types \
 	-I$(THEOS_PROJECT_DIR) \
 	-DTHETA_VERSION='"v$(THEOS_PACKAGE_BASE_VERSION)"'
 
-Theta_OBJCCFLAGS += -std=c++17 -stdlib=libc++ -fno-modules
+Theta_OBJCCFLAGS += -std=c++17 -stdlib=libc++
 
 # FFmpeg headers (runtime loaded via dlopen)
 Theta_CFLAGS += -I"$(THEOS_PROJECT_DIR)/layout/Library/Application Support/ffmpeg.framework"

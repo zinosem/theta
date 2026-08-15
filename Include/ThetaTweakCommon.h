@@ -6,6 +6,10 @@
 
 #import <Foundation/Foundation.h>
 
+#ifndef typeof
+#define typeof __typeof__
+#endif
+
 #define ENABLED(setting) [[NSUserDefaults standardUserDefaults] boolForKey:[NSString stringWithFormat:@"%@_Enabled", setting]]
 
 /** Implemented in HideFeedFiltering.m; chained from HideAds home feed adapter. */

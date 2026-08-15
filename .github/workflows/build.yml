@@ -50,6 +50,10 @@ jobs:
           XCODE_TC=$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain
           ln -sf "$XCODE_TC" "$THEOS/toolchain/Xcode14.xctoolchain"
           
+          echo "Linking C++ headers into SDK sysroot..."
+          mkdir -p "$THEOS/sdks/iPhoneOS14.5.sdk/usr/include/c++"
+          ln -sf "$XCODE_TC/usr/include/c++/v1" "$THEOS/sdks/iPhoneOS14.5.sdk/usr/include/c++/v1"
+          
           echo "Testing clang toolchain..."
           "$THEOS/toolchain/Xcode14.xctoolchain/usr/bin/clang" --version
 

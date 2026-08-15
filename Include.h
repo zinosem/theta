@@ -1,5 +1,10 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+
+#ifndef typeof
+#define typeof __typeof__
+#endif
+
 #import <objc/runtime.h>
 #import <objc/message.h>
 #import <AudioToolbox/AudioToolbox.h>
