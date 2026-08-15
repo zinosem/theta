@@ -27,7 +27,7 @@ Theta_FILES = TweakCOMPILE.xm fishhook.c \
 	$(wildcard Source/Media/*.m) \
 	$(wildcard Source/ProfileAnalyzer/*.m)
 
-Theta_FRAMEWORKS = UIKit Foundation CoreGraphics Photos CoreServices SystemConfiguration SafariServices Security QuartzCore AuthenticationServices WebKit UserNotifications AVFoundation
+Theta_FRAMEWORKS = UIKit Foundation CoreGraphics Photos CoreServices SystemConfiguration SafariServices Security QuartzCore AuthenticationServices WebKit UserNotifications AVFoundation AVKit
 Theta_LDFLAGS = -lsqlite3
 Theta_PRIVATE_FRAMEWORKS = Preferences
 
@@ -40,10 +40,13 @@ else
 endif
 
 Theta_CFLAGS += -fobjc-arc \
+	-fno-modules \
 	-Wno-unused-variable -Wno-unused-value -Wno-deprecated-declarations \
 	-Wno-nullability-completeness -Wno-unused-function -Wno-incompatible-pointer-types \
 	-I$(THEOS_PROJECT_DIR) \
 	-DTHETA_VERSION='"v$(THEOS_PACKAGE_BASE_VERSION)"'
+
+Theta_OBJCCFLAGS += -std=c++17 -stdlib=libc++ -fno-modules
 
 # FFmpeg headers (runtime loaded via dlopen)
 Theta_CFLAGS += -I"$(THEOS_PROJECT_DIR)/layout/Library/Application Support/ffmpeg.framework"
