@@ -22,23 +22,7 @@ static void hook_directComposer2(id self, SEL _cmd) {
             UIViewController *ballsThreadVC = nil;
             id msgListDataSource = nil;
             if ([viewController isKindOfClass:NSClassFromString(@"IGDirectComposerViewController")]) {
-                ballsThreadVC = [viewController valueForKey:@"delegate"];
-                id lastSenderImg = nil;
-                if ([msgListDataSource respondsToSelector:@selector(mostRecentMessageSenderProfileImage)]) {
-                    lastSenderImg = [msgListDataSource performSelector:@selector(mostRecentMessageSenderProfileImage)];
-                }
-                //lastSender = [lastSenderImg valueForKey:@"_profileImage_user"];
-                
-                // check if lastSenderImg has ivar '_profileImage_user' or '_profileImageModel_user'
-                Ivar profileImageUserIvar = class_getInstanceVariable([lastSenderImg class], "_profileImage_user");
-                if (profileImageUserIvar) {
-                    lastSender = object_getIvar(lastSenderImg, profileImageUserIvar);
-                } else {
-                    profileImageUserIvar = class_getInstanceVariable([lastSenderImg class], "_profileImageModel_user");
-                    if (profileImageUserIvar) {
-                        lastSender = object_getIvar(lastSenderImg, profileImageUserIvar);
-                    }
-                }
+                @try { ballsThreadVC = [viewController valueForKey:@"delegate"]; } @catch (__unused NSException *e) {}
             }
             if (!ballsThreadVC) {
                 Class threadCls = NSClassFromString(@"IGDirectThreadViewController");
@@ -46,6 +30,25 @@ static void hook_directComposer2(id self, SEL _cmd) {
                 while (r) {
                     if (threadCls && [r isKindOfClass:threadCls]) { ballsThreadVC = (id)r; break; }
                     r = [r nextResponder];
+                }
+            }
+
+            if (ballsThreadVC) {
+                @try { msgListDataSource = [ballsThreadVC valueForKey:@"messageListDataSource"]; } @catch (__unused NSException *e) {}
+                if (!msgListDataSource) {
+                    @try { msgListDataSource = [ballsThreadVC valueForKey:@"_messageListDataSource"]; } @catch (__unused NSException *e) {}
+                }
+                if (msgListDataSource && [msgListDataSource respondsToSelector:@selector(mostRecentMessageSenderProfileImage)]) {
+                    id lastSenderImg = [msgListDataSource performSelector:@selector(mostRecentMessageSenderProfileImage)];
+                    Ivar profileImageUserIvar = class_getInstanceVariable([lastSenderImg class], "_profileImage_user");
+                    if (profileImageUserIvar) {
+                        lastSender = object_getIvar(lastSenderImg, profileImageUserIvar);
+                    } else {
+                        profileImageUserIvar = class_getInstanceVariable([lastSenderImg class], "_profileImageModel_user");
+                        if (profileImageUserIvar) {
+                            lastSender = object_getIvar(lastSenderImg, profileImageUserIvar);
+                        }
+                    }
                 }
             }
 
@@ -145,7 +148,7 @@ static void hook_directComposer2(id self, SEL _cmd) {
                 BOOL throttled = (now - lastShown) < kThetaShowThrottleSeconds;
 
                 id unreadHint = theta_activeDirectThreadViewController() ?: ballsThreadVC;
-                if (transitionedFromEmptyToNonEmpty && lastSender && !alreadyShown && !throttled && theta_hasUnreadFromRecipient(unreadHint)) {
+                if (transitionedFromEmptyToNonEmpty && !alreadyShown && !throttled && theta_hasUnreadFromRecipient(unreadHint)) {
                     [thetaThreadsShownBanner addObject:stableKey];
                     thetaLastShownAtByKey[stableKey] = @(now);
                     id composerView = self;

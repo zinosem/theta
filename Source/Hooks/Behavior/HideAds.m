@@ -198,7 +198,8 @@ static void hook_hideSuggestedReels3(id self, SEL _cmd) {
 
     @try {
         UILabel *label = [self valueForKey:@"_titleLabel"];
-        if ([label.text isEqualToString:@"Suggested Posts"]) {
+        NSString *text = label.text.lowercaseString;
+        if ([text containsString:@"suggested"] || [text containsString:@"suggér"] || [text containsString:@"suger"] || [text containsString:@"empfohlen"]) {
             [self removeFromSuperview];
             return;
         }

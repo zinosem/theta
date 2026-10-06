@@ -128,7 +128,7 @@ static void _thetaShowDeletedInfo(id self, SEL _cmd, id sender) {
 	NSString *sid = objc_getAssociatedObject(button, &kThetaDeletedServerIdKey);
 	if (sid.length == 0) return;
 	NSString *deletedMessageDate = [[MessagesManager sharedManager] dateForDeletedMessageWithID:sid];
-	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"BHInsta, Hi" message:[NSString stringWithFormat:@"Message deleted at: %@", deletedMessageDate ?: @"Unknown"] preferredStyle:UIAlertControllerStyleAlert];
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Deleted Message" message:[NSString stringWithFormat:@"Message deleted at: %@", deletedMessageDate ?: @"Unknown"] preferredStyle:UIAlertControllerStyleAlert];
 	[alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
 	[topMostController() presentViewController:alert animated:YES completion:nil];
 }
@@ -361,6 +361,10 @@ static void hook_messageCache2(id self, SEL _cmd, id updates, id completion) {
 
 	// If we successfully saved deleted messages, block the update
 	if (shouldBlockUpdate) {
+		if (completion) {
+			void (^blk)(void) = (void (^)(void))completion;
+			@try { blk(); } @catch (__unused NSException *e) {}
+		}
 		return;
 	}
 
@@ -453,6 +457,10 @@ static void hook_messageCache3(id self, SEL _cmd, id updates, id completion, id 
 
 	// If we successfully saved deleted messages, block the update
 	if (shouldBlockUpdate) {
+		if (completion) {
+			void (^blk)(void) = (void (^)(void))completion;
+			@try { blk(); } @catch (__unused NSException *e) {}
+		}
 		return;
 	}
 

@@ -182,17 +182,17 @@ static void performProfilePictureDownloadWithURL(NSURL *imageURL) {
                         }
                     }];
                 } else {
-                    // Local folder mode: move into Documents/AudioNotes
-                    NSString *audioNotesDir = [documentsPath stringByAppendingPathComponent:@"AudioNotes"];
+                    // Local folder mode: move into Documents/ProfilePictures
+                    NSString *profilePicsDir = [documentsPath stringByAppendingPathComponent:@"ProfilePictures"];
                     BOOL isDir = NO;
-                    if (![[NSFileManager defaultManager] fileExistsAtPath:audioNotesDir isDirectory:&isDir] || !isDir) {
-                        [[NSFileManager defaultManager] createDirectoryAtPath:audioNotesDir withIntermediateDirectories:YES attributes:nil error:nil];
+                    if (![[NSFileManager defaultManager] fileExistsAtPath:profilePicsDir isDirectory:&isDir] || !isDir) {
+                        [[NSFileManager defaultManager] createDirectoryAtPath:profilePicsDir withIntermediateDirectories:YES attributes:nil error:nil];
                     }
-                    NSString *destPath = [audioNotesDir stringByAppendingPathComponent:[permanentFilePath lastPathComponent]];
+                    NSString *destPath = [profilePicsDir stringByAppendingPathComponent:[permanentFilePath lastPathComponent]];
                     NSError *moveErr = nil;
                     if (![[NSFileManager defaultManager] moveItemAtPath:permanentFilePath toPath:destPath error:&moveErr]) {
                         NSString *unique = [NSString stringWithFormat:@"profile-%@.jpg", [[NSUUID UUID] UUIDString]];
-                        destPath = [audioNotesDir stringByAppendingPathComponent:unique];
+                        destPath = [profilePicsDir stringByAppendingPathComponent:unique];
                         [[NSFileManager defaultManager] moveItemAtPath:permanentFilePath toPath:destPath error:nil];
                     }
                     if (ENABLED(@"Show Banners")) {

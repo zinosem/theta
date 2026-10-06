@@ -4,11 +4,16 @@ static void hook_applicationDidBecomeActive(id self, SEL _cmd, id arg1) {
     orig_applicationDidBecomeActive(self, _cmd, arg1);
 
     if (ENABLED(@"Lock Instagram") && !isAuthenticationShowed) {
-        UIViewController *rootController = [[self window] rootViewController];
-		SecurityViewController *securityViewController = [SecurityViewController new];
-		securityViewController.modalPresentationStyle = UIModalPresentationOverFullScreen;
-		[rootController presentViewController:securityViewController animated:YES completion:nil];
-		isAuthenticationShowed = TRUE;
+        UIViewController *topController = [ThetaHelper topViewController];
+        if (!topController) {
+            @try { topController = [[self window] rootViewController]; } @catch (__unused NSException *e) {}
+        }
+        if (topController && ![topController isKindOfClass:NSClassFromString(@"SecurityViewController")]) {
+            SecurityViewController *securityViewController = [SecurityViewController new];
+            securityViewController.modalPresentationStyle = UIModalPresentationOverFullScreen;
+            [topController presentViewController:securityViewController animated:YES completion:nil];
+            isAuthenticationShowed = TRUE;
+        }
     }
 }
 

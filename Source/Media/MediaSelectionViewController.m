@@ -1543,7 +1543,12 @@ static void * const playerKey = &playerKey;
                 });
                 formatProgressDisplay(); // Updates toast internally with progress
                 
-                NSData *videoData = [video valueForKey:@"dashManifestData"];
+                NSData *videoData = nil;
+                @try {
+                    videoData = [video valueForKey:@"dashManifestData"];
+                } @catch (__unused NSException *e) {
+                    videoData = nil;
+                }
                 if (!videoData) {
                     dispatch_semaphore_signal(downloadSemaphore);
                     dispatch_async(statsQueue, ^{
