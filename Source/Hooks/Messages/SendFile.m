@@ -19,23 +19,34 @@ static _THFilePickerDelegate *sTHFilePickerDelegate = nil;
     NSURL *url = urls.firstObject;
     if (!url || !self.threadVC) return;
 
-    id msgSenderFC = nil;
-    @try { msgSenderFC = [self.threadVC valueForKey:@"messageSenderFeatureController"]; } @catch (__unused id e) {}
-    if (!msgSenderFC) { return; }
+    BOOL scoped = NO;
+    if ([url respondsToSelector:@selector(startAccessingSecurityScopedResource)]) {
+        scoped = [url startAccessingSecurityScopedResource];
+    }
 
-    id sender = nil;
-    @try { sender = [msgSenderFC valueForKey:@"messageSender"]; } @catch (__unused id e) {}
-    if (!sender) { return; }
+    @try {
+        id msgSenderFC = nil;
+        @try { msgSenderFC = [self.threadVC valueForKey:@"messageSenderFeatureController"]; } @catch (__unused id e) {}
+        if (!msgSenderFC) { return; }
 
-    SEL sendSel = NSSelectorFromString(@"sendFileWithURL:threadKey:attribution:replyMessagePk:quotedPublishedMessage:messageSentSpeedLogger:messageSentSpeedMarker:localSendSpeedLogger:localSendSpeedMarker:");
-    if (![sender respondsToSelector:sendSel]) { return; }
+        id sender = nil;
+        @try { sender = [msgSenderFC valueForKey:@"messageSender"]; } @catch (__unused id e) {}
+        if (!sender) { return; }
 
-    id threadKey = nil;
-    @try { threadKey = [self.threadVC valueForKey:@"threadKey"]; } @catch (__unused id e) {}
-    if (!threadKey) { return; }
+        SEL sendSel = NSSelectorFromString(@"sendFileWithURL:threadKey:attribution:replyMessagePk:quotedPublishedMessage:messageSentSpeedLogger:messageSentSpeedMarker:localSendSpeedLogger:localSendSpeedMarker:");
+        if (![sender respondsToSelector:sendSel]) { return; }
 
-    typedef void (*SendFn)(id, SEL, id, id, id, id, id, id, id, id, id);
-    ((SendFn)objc_msgSend)(sender, sendSel, url, threadKey, nil, nil, nil, nil, nil, nil, nil);
+        id threadKey = nil;
+        @try { threadKey = [self.threadVC valueForKey:@"threadKey"]; } @catch (__unused id e) {}
+        if (!threadKey) { return; }
+
+        typedef void (*SendFn)(id, SEL, id, id, id, id, id, id, id, id, id);
+        ((SendFn)objc_msgSend)(sender, sendSel, url, threadKey, nil, nil, nil, nil, nil, nil, nil);
+    } @finally {
+        if (scoped) {
+            [url stopAccessingSecurityScopedResource];
+        }
+    }
 }
 
 @end

@@ -131,8 +131,8 @@ static void hook_sortUserPostsGrid(id self, SEL _cmd) {
     if ([self respondsToSelector:@selector(accessibilityLabel)]) {
         accessibilityLabel = [self accessibilityLabel];
     }
-    if (![accessibilityLabel isKindOfClass:[NSString class]]) return;
-    if ([accessibilityLabel isEqualToString:@"Grid"]) {
+    NSString *acc = accessibilityLabel.lowercaseString;
+    if ([acc isEqualToString:@"grid"] || [acc isEqualToString:@"grille"] || [acc isEqualToString:@"cuadrícula"] || [acc isEqualToString:@"cuadricula"] || [acc containsString:@"grid"]) {
         NSNumber *alreadyAdded = objc_getAssociatedObject(self, &kThetaSortGridLongPressOnceKey);
         if ([alreadyAdded boolValue]) return;
 

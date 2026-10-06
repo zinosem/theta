@@ -17,11 +17,10 @@ static BOOL hook_hideCreateGroupButton2(id self, SEL _cmd, BOOL animated) {
 
 static void (*orig_hideCreateGroupButton3)(id self, SEL _cmd);
 static void hook_hideCreateGroupButton3(id self, SEL _cmd) {
-    if (!ENABLED(@"Hide \"Create Group\" Button")) {
-        return orig_hideCreateGroupButton3(self, _cmd);
+    if (orig_hideCreateGroupButton3) orig_hideCreateGroupButton3(self, _cmd);
+    if (ENABLED(@"Hide \"Create Group\" Button")) {
+        [self setHidden:YES];
     }
-
-    [self removeFromSuperview];
 }
 
 void THRegisterHideCreateGroupButtonHooks(void) {

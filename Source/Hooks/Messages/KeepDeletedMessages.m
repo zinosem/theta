@@ -325,22 +325,18 @@ static void hook_messageCache2(id self, SEL _cmd, id updates, id completion) {
 					// Process all removeKeys to save deleted messages
 					BOOL allValid = YES;
 					for (id messageKey in removeKeys) {
-						if (![messageKey isKindOfClass:NSClassFromString(@"IGDirectMessageUpdateMessageKey")]) {
-							// Invalid message key format, proceed normally
-							allValid = NO;
-							break;
-						}
-						IGDirectMessageUpdateMessageKey *updateKey = messageKey;
-
-						id serverIdValue = [updateKey valueForKey:@"_messageServerId"];
-						if (!serverIdValue) {
-							// No server ID, proceed normally
+						NSString *serverId = nil;
+						@try {
+							serverId = [messageKey valueForKey:@"_messageServerId"];
+							if (!serverId) serverId = [messageKey valueForKey:@"serverId"];
+							if (!serverId) serverId = [messageKey valueForKey:@"_serverId"];
+						} @catch (__unused NSException *e) {}
+						if (!serverId || ![serverId isKindOfClass:[NSString class]] || serverId.length == 0) {
 							allValid = NO;
 							break;
 						}
 
-						NSString *MsgKey = serverIdValue;
-						[[MessagesManager sharedManager] saveDeletedMessageWithID:MsgKey];
+						[[MessagesManager sharedManager] saveDeletedMessageWithID:serverId];
 						shouldBlockUpdate = YES; // Mark that we should block this update
 					}
 

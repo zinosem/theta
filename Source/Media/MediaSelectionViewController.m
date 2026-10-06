@@ -1333,8 +1333,10 @@ static void * const playerKey = &playerKey;
         [photoLibrary performChanges:^{
             for (NSInteger i = 0; i < filePaths.count; i++) {
                 NSString *filePath = filePaths[i];
-                NSString *fileExtension = fileExtensions[i];
-                if ([[fileExtension lowercaseString] isEqualToString:@"mp4"]) {
+                NSString *fileExtension = (i < fileExtensions.count) ? fileExtensions[i] : [filePath pathExtension];
+                NSString *ext = [fileExtension lowercaseString];
+                BOOL isVideo = [ext isEqualToString:@"mp4"] || [ext isEqualToString:@"mov"] || [ext isEqualToString:@"m4v"];
+                if (isVideo) {
                     [PHAssetChangeRequest creationRequestForAssetFromVideoAtFileURL:[NSURL fileURLWithPath:filePath]];
                 } else {
                     UIImage *image = [UIImage imageWithContentsOfFile:filePath];
@@ -1880,66 +1882,6 @@ static void * const playerKey = &playerKey;
                 
                 if (saveMethod == 0) {
                     // Save to camera roll
-                    #ifdef SIDELOAD
-                    // For sideload builds, copy to Caches and use ALAssetsLibrary
-                    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
-                    NSString *cachesDir = [paths firstObject];
-                    NSString *cacheVideoPath = [cachesDir stringByAppendingPathComponent:[NSString stringWithFormat:@"theta_bulk_%ld_%@.mp4", (long)videoIndex, [[NSUUID UUID] UUIDString]]];
-                    
-                    NSError *copyError = nil;
-                    if ([fm copyItemAtPath:outputPath toPath:cacheVideoPath error:&copyError]) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-                        ALAssetsLibrary *library = [[ALAssetsLibrary alloc] init];
-                        [library writeVideoAtPathToSavedPhotosAlbum:[NSURL fileURLWithPath:cacheVideoPath] completionBlock:^(NSURL *assetURL, NSError *error) {
-                            // Cleanup
-                            [fm removeItemAtPath:videoPath error:nil];
-                            if (audioPath) [fm removeItemAtPath:audioPath error:nil];
-                            [fm removeItemAtPath:outputPath error:nil];
-                            [fm removeItemAtPath:cacheVideoPath error:nil];
-                            
-                            dispatch_async(statsQueue, ^{
-                                if (!error && assetURL) {
-                                } else {
-                                    NSLog(@"Failed to save video %ld: %@", (long)videoIndex, error);
-                                    failedVideos++;
-                                }
-                                completedVideos++;
-                                
-                                dispatch_async(dispatch_get_main_queue(), ^{
-                                    [progressToast updateProgressWithTitle:@"Bulk saving videos!" subtitle:formatProgressDisplay()];
-                                    
-                                    if (completedVideos >= totalVideos) {
-                                        [self showCompletionToast:progressToast completed:completedVideos total:totalVideos failed:failedVideos];
-                                        [MediaSelectionViewController setDownloadInProgress:NO];
-                                    }
-                                });
-                            });
-                        }];
-#pragma clang diagnostic pop
-                    } else {
-                        NSLog(@"Failed to copy video %ld to Caches: %@", (long)videoIndex, copyError);
-                        
-                        // Cleanup
-                        [fm removeItemAtPath:videoPath error:nil];
-                        if (audioPath) [fm removeItemAtPath:audioPath error:nil];
-                        [fm removeItemAtPath:outputPath error:nil];
-                        
-                        dispatch_async(statsQueue, ^{
-                            failedVideos++;
-                            completedVideos++;
-                            dispatch_async(dispatch_get_main_queue(), ^{
-                                [progressToast updateProgressWithTitle:@"Bulk saving videos!" subtitle:formatProgressDisplay()];
-                                
-                                if (completedVideos >= totalVideos) {
-                                    [self showCompletionToast:progressToast completed:completedVideos total:totalVideos failed:failedVideos];
-                                    [MediaSelectionViewController setDownloadInProgress:NO];
-                                }
-                            });
-                        });
-                    }
-                    #else
-                    // Jailbreak: Photos import (creation-request path when available)
                     NSURL *outputURL = [NSURL fileURLWithPath:outputPath];
                     ThetaPhotoLibraryImportVideoFromURL(outputURL, ^(BOOL success, NSError *error) {
                         // Cleanup
@@ -1965,18 +1907,17 @@ static void * const playerKey = &playerKey;
                             });
                         });
                     });
-                    #endif
                 } else {
-                    // Save to AudioNotes folder
-                    NSString *audioNotesDir = [documentsPath stringByAppendingPathComponent:@"AudioNotes"];
-                    if (![fm fileExistsAtPath:audioNotesDir]) {
-                        [fm createDirectoryAtPath:audioNotesDir withIntermediateDirectories:YES attributes:nil error:nil];
+                    // Save to local Media folder
+                    NSString *mediaDir = [documentsPath stringByAppendingPathComponent:@"Media"];
+                    if (![fm fileExistsAtPath:mediaDir]) {
+                        [fm createDirectoryAtPath:mediaDir withIntermediateDirectories:YES attributes:nil error:nil];
                     }
                     
                     NSDateFormatter *formatter = [NSDateFormatter new];
                     [formatter setDateFormat:@"yyyyMMdd-HHmmss"];
                     NSString *destName = [NSString stringWithFormat:@"Video-%@_%ld.mp4", [formatter stringFromDate:[NSDate date]], (long)videoIndex];
-                    NSString *destPath = [audioNotesDir stringByAppendingPathComponent:destName];
+                    NSString *destPath = [mediaDir stringByAppendingPathComponent:destName];
                     
                     NSError *moveError = nil;
                     if ([fm moveItemAtPath:outputPath toPath:destPath error:&moveError]) {
@@ -1997,7 +1938,7 @@ static void * const playerKey = &playerKey;
                             });
                         });
                     } else {
-                        NSLog(@"Failed to move video %ld to AudioNotes: %@", (long)videoIndex, moveError);
+                        NSLog(@"Failed to move video %ld to Media: %@", (long)videoIndex, moveError);
                         
                         // Cleanup
                         [fm removeItemAtPath:videoPath error:nil];
@@ -2041,9 +1982,16 @@ static void * const playerKey = &playerKey;
             });
             
             // Try to get video info and attempt thumbnail generation
-            NSSet *videoURLs = [video allVideoURLs];
-            if (videoURLs && videoURLs.count > 0) {
-                NSURL *firstVideoURL = [videoURLs anyObject];
+            NSURL *firstVideoURL = theta_bestVideoURLFromVideo(video);
+            if (!firstVideoURL && [video respondsToSelector:@selector(allVideoURLs)]) {
+                @try {
+                    NSSet *videoURLs = [video performSelector:@selector(allVideoURLs)];
+                    if ([videoURLs respondsToSelector:@selector(anyObject)]) {
+                        firstVideoURL = [videoURLs anyObject];
+                    }
+                } @catch (__unused NSException *e) {}
+            }
+            if (firstVideoURL) {
                 NSLog(@"Found video URL for HD video %ld: %@", (long)index, firstVideoURL);
                 
                 // Try to download a small portion and generate thumbnail

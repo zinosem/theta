@@ -695,103 +695,33 @@ static void downloadHDVideoSelectingURL(IGVideo *inputVideo, NSString *selectedV
                                         [progressToast updateProgressWithTitle:@"Saving video" subtitle:@"Adding to camera roll..."];
                                     });
                                     
-                                    #ifdef SIDELOAD
-                                        // For sideload builds, must load video into memory (file URLs don't work in sandbox)
-                                        // Verify file exists and has content
-                                        NSDictionary *fileAttrs = [fm attributesOfItemAtPath:h264OutputPath error:nil];
-                                        unsigned long long fileSize = [fileAttrs fileSize];
-                                        
-                                        if (fileSize == 0 || !fileAttrs) {
-                                            NSLog(@"Transcoded file is empty or doesn't exist");
+                                    NSURL *h264OutputURL = [NSURL fileURLWithPath:h264OutputPath];
+                                    ThetaPhotoLibraryImportVideoFromURL(h264OutputURL, ^(BOOL success, NSError * _Nullable error) {
+                                        if (success) {
                                             dispatch_async(dispatch_get_main_queue(), ^{
-                                                showCompletionToast(progressToast, NO, @"Error", @"Transcoded video file is invalid", [UIImage systemImageNamed:@"exclamationmark.triangle"], nil);
+                                                NSInteger saveMethod = [[NSUserDefaults standardUserDefaults] integerForKey:@"Save Method_SegmentIndex"];
+                                                NSString *finalTitle = (saveMethod == 0) ? @"Saved to camera roll!" : @"Saved to local folder!";
+                                                NSString *finalSubtitle = (saveMethod == 0) ? @"Tap here to go to camera roll." : @"";
+                                                NSURL *finalURL = (saveMethod == 0) ? [NSURL URLWithString:@"photos-redirect://"] : nil;
+                                                showCompletionToast(progressToast, YES, finalTitle, finalSubtitle, [UIImage systemImageNamed:@"checkmark.circle.fill"], finalURL);
                                             });
-                                                                    finishJob();
-                dispatch_semaphore_signal(semaphore);
-                                        } else {
-                                            // Load video data into memory (required for sandboxed apps)
-                                            // Copy video to app's Library/Caches which is more accessible
-                                            NSString *cacheVideoPath = [workDir stringByAppendingPathComponent:@"import.mp4"];
                                             
-                                            NSError *copyError = nil;
-                                            if ([fm copyItemAtPath:h264OutputPath toPath:cacheVideoPath error:&copyError]) {
-                                                
-                                                // Use legacy ALAssetsLibrary with file URL from Caches
-                                                #pragma clang diagnostic push
-                                                #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-                                                ALAssetsLibrary *library = [[ALAssetsLibrary alloc] init];
-                                                [library writeVideoAtPathToSavedPhotosAlbum:[NSURL fileURLWithPath:cacheVideoPath] completionBlock:^(NSURL *assetURL, NSError *error) {
-                                                    if (assetURL && !error) {
-                                                        
-                                                        dispatch_async(dispatch_get_main_queue(), ^{
-                                                            NSInteger saveMethod = [[NSUserDefaults standardUserDefaults] integerForKey:@"Save Method_SegmentIndex"];
-                                                            NSString *finalTitle = (saveMethod == 0) ? @"Saved to camera roll!" : @"Saved to local folder!";
-                                                            NSString *finalSubtitle = (saveMethod == 0) ? @"Tap here to go to camera roll." : @"";
-                                                            NSURL *finalURL = (saveMethod == 0) ? [NSURL URLWithString:@"photos-redirect://"] : nil;
-                                                            showCompletionToast(progressToast, YES, finalTitle, finalSubtitle, [UIImage systemImageNamed:@"checkmark.circle.fill"], finalURL);
-                                                        });
-                                                        
-                                                        // Clean up all temporary files
-                                                        [fm removeItemAtPath:videoPath error:nil];
-                                                        if (hasAudio) {
-                                                            [fm removeItemAtPath:audioPath error:nil];
-                                                        }
-                                                        [fm removeItemAtPath:outputPath error:nil];
-                                                        [fm removeItemAtPath:h264OutputPath error:nil];
-                                                        [fm removeItemAtPath:cacheVideoPath error:nil];
-                                                    } else {
-                                                        NSLog(@"Failed to save video using ALAssetsLibrary: %@", error);
-                                                        NSLog(@"Error domain: %@, code: %ld", error.domain, (long)error.code);
-                                                        dispatch_async(dispatch_get_main_queue(), ^{
-                                                            NSString *errorMsg = error.localizedDescription ?: @"Unknown error";
-                                                            showCompletionToast(progressToast, NO, @"Error", [NSString stringWithFormat:@"Save failed: %@", errorMsg], [UIImage systemImageNamed:@"exclamationmark.triangle"], nil);
-                                                        });
-                                                        // Don't clean up so user can debug
-                                                    }
-                                                                            finishJob();
-                dispatch_semaphore_signal(semaphore);
-                                                }];
-                                                #pragma clang diagnostic pop
-                                            } else {
-                                                NSLog(@"Failed to copy video to Caches: %@", copyError);
-                                                dispatch_async(dispatch_get_main_queue(), ^{
-                                                    showCompletionToast(progressToast, NO, @"Error", @"Failed to prepare video", [UIImage systemImageNamed:@"exclamationmark.triangle"], nil);
-                                                });
-                                                                        finishJob();
-                dispatch_semaphore_signal(semaphore);
+                                            // Clean up all temporary files
+                                            [fm removeItemAtPath:videoPath error:nil];
+                                            if (hasAudio) {
+                                                [fm removeItemAtPath:audioPath error:nil];
                                             }
+                                            [fm removeItemAtPath:outputPath error:nil];
+                                            [fm removeItemAtPath:h264OutputPath error:nil];
+                                        } else {
+                                            NSLog(@"Failed to save H.264 video to camera roll: %@", error);
+                                            dispatch_async(dispatch_get_main_queue(), ^{
+                                                showCompletionToast(progressToast, NO, @"Error", @"Failed to save to camera roll", [UIImage systemImageNamed:@"exclamationmark.triangle"], nil);
+                                            });
                                         }
-                                    #else
-                                        // For jailbreak builds, use file URL (faster, no memory copy)
-                                        NSURL *h264OutputURL = [NSURL fileURLWithPath:h264OutputPath];
-                                        ThetaPhotoLibraryImportVideoFromURL(h264OutputURL, ^(BOOL success, NSError * _Nullable error) {
-                                            if (success) {
-                                                
-                                                dispatch_async(dispatch_get_main_queue(), ^{
-                                                    NSInteger saveMethod = [[NSUserDefaults standardUserDefaults] integerForKey:@"Save Method_SegmentIndex"];
-                                                    NSString *finalTitle = (saveMethod == 0) ? @"Saved to camera roll!" : @"Saved to local folder!";
-                                                    NSString *finalSubtitle = (saveMethod == 0) ? @"Tap here to go to camera roll." : @"";
-                                                    NSURL *finalURL = (saveMethod == 0) ? [NSURL URLWithString:@"photos-redirect://"] : nil;
-                                                    showCompletionToast(progressToast, YES, finalTitle, finalSubtitle, [UIImage systemImageNamed:@"checkmark.circle.fill"], finalURL);
-                                                });
-                                                
-                                                // Clean up all temporary files
-                                                [fm removeItemAtPath:videoPath error:nil];
-                                                if (hasAudio) {
-                                                    [fm removeItemAtPath:audioPath error:nil];
-                                                }
-                                                [fm removeItemAtPath:outputPath error:nil];
-                                                [fm removeItemAtPath:h264OutputPath error:nil];
-                                            } else {
-                                                NSLog(@"Failed to save H.264 video to camera roll: %@", error);
-                                                dispatch_async(dispatch_get_main_queue(), ^{
-                                                    showCompletionToast(progressToast, NO, @"Error", @"Failed to save to camera roll", [UIImage systemImageNamed:@"exclamationmark.triangle"], nil);
-                                                });
-                                            }
-                                                                    finishJob();
-                dispatch_semaphore_signal(semaphore);
-                                        });
-                                    #endif
+                                        finishJob();
+                                        dispatch_semaphore_signal(semaphore);
+                                    });
                                 } else {
                                     // Save to AudioNotes folder
                                     dispatch_async(dispatch_get_main_queue(), ^{
@@ -1022,7 +952,7 @@ static void downloadMedia(id self) {
                     // Add to appropriate arrays
                     if (url || isVideo) {
                         // Count all items for total count
-                        NSDictionary *mediaDict = @{ @"url": url ? url.absoluteString : @"", @"preview": preview ?: [UIImage systemImageNamed:@"photo"] };
+                        NSDictionary *mediaDict = @{ @"url": url ? url.absoluteString : @"", @"preview": preview ?: ([UIImage systemImageNamed:@"photo"] ?: [UIImage new]) };
                         [mediaItems addObject:mediaDict];
                         
                         // Add non-video items to regularItems
@@ -1102,9 +1032,9 @@ static void fullscreenMediaItem(id self) {
             @try { currentMedia = [delegateImpl valueForKey:@"_media"]; } @catch (__unused NSException *e) {}
         } else if ([delegateImpl respondsToSelector:@selector(mediaCell)]) {
             @try {
-                id cell = [delegateImpl performSelector:@selector(mediaCell)];
-                if (cell) {
-                    currentMedia = [cell valueForKey:@"_media"] ?: [cell valueForKey:@"media"];
+                id c = [delegateImpl performSelector:@selector(mediaCell)];
+                if (c) {
+                    currentMedia = [c valueForKey:@"_media"] ?: [c valueForKey:@"media"];
                 }
             } @catch (__unused NSException *e) {}
         }
@@ -1112,43 +1042,59 @@ static void fullscreenMediaItem(id self) {
             @try { currentMedia = [delegateImpl valueForKey:@"_media"] ?: [delegateImpl valueForKey:@"media"]; } @catch (__unused NSException *e) {}
         }
 
-        IGPostItem *media = [currentMedia.items objectAtIndex:currentIndex];
-        NSURL *url = nil;
+        id targetMediaItem = nil;
+        NSArray *items = nil;
+        @try { items = currentMedia.items; } @catch (__unused NSException *e) {}
+        if ([items isKindOfClass:[NSArray class]] && items.count > 0) {
+            if (currentIndex < items.count) {
+                targetMediaItem = items[currentIndex];
+            } else {
+                targetMediaItem = items.firstObject;
+            }
+        } else {
+            targetMediaItem = currentMedia;
+        }
 
-        if ([media respondsToSelector:@selector(itemMediaType)]) {
-            if (media.itemMediaType == 1) {
-                IGPhoto *photo = media.photo;
+        NSURL *url = nil;
+        if (targetMediaItem) {
+            id photo = nil;
+            if ([targetMediaItem respondsToSelector:@selector(photo)]) {
+                @try { photo = [targetMediaItem performSelector:@selector(photo)]; } @catch (__unused NSException *e) {}
+            }
+            if (!photo) {
+                @try { photo = [targetMediaItem valueForKey:@"photo"]; } @catch (__unused NSException *e) {}
+            }
+
+            id video = nil;
+            if ([targetMediaItem respondsToSelector:@selector(video)]) {
+                @try { video = [targetMediaItem performSelector:@selector(video)]; } @catch (__unused NSException *e) {}
+            }
+            if (!video) {
+                @try { video = [targetMediaItem valueForKey:@"video"]; } @catch (__unused NSException *e) {}
+            }
+
+            if (photo) {
                 NSArray *originalImageVersions = theta_photoVersions(photo);
                 if (originalImageVersions.count > 0) {
                     url = theta_bestImageURLFromVersions(originalImageVersions);
                 }
-            } else if (media.itemMediaType == 2) {
-                IGVideo *video = media.video;
-                NSSet *videoURLs = [video allVideoURLs];
-                url = [videoURLs anyObject];
+            }
+            if (!url && video) {
+                url = theta_bestVideoURLFromVideo(video);
+            }
+            if (!url && photo) {
+                NSArray *versions = theta_photoVersions(photo);
+                if (versions.count > 0) url = theta_bestImageURLFromVersions(versions);
             }
         }
 
-        if ([media respondsToSelector:@selector(mediaType)]) {
-            if (media.mediaType == 1) {
-                IGPhoto *photo = media.photo;
-                NSArray *originalImageVersions = theta_photoVersions(photo);
-                if (originalImageVersions.count > 0) {
-                    url = theta_bestImageURLFromVersions(originalImageVersions);
-                }
-            } else if (media.mediaType == 2) {
-                IGVideo *video = media.video;
-                NSSet *videoURLs = [video allVideoURLs];
-                url = [videoURLs anyObject];
-            }	
+        if (url) {
+            MediaViewController *mediaVC = [[MediaViewController alloc] initWithMediaURL:url];
+            mediaVC.modalPresentationStyle = UIModalPresentationFullScreen;
+            [[ThetaHelper topViewController] presentViewController:mediaVC animated:YES completion:nil];
         }
-
-        MediaViewController *mediaVC = [MediaViewController new];
-        [mediaVC initWithMediaURL:url];
-        mediaVC.modalPresentationStyle = UIModalPresentationFullScreen;
-        [[ThetaHelper topViewController] presentViewController:mediaVC animated:YES completion:nil];
     } @catch (NSException *exception) {
-        NSLog(@"Error: %@", exception);
+        NSLog(@"Error in fullscreenMediaItem: %@", exception);
     }
 }
 
@@ -1357,7 +1303,7 @@ static void downloadSundialMedia(id self) {
             }
 
             if (url) {
-                NSDictionary *mediaDict = @{ @"url": url.absoluteString, @"preview": preview ?: [UIImage systemImageNamed:@"photo"] };
+                NSDictionary *mediaDict = @{ @"url": url.absoluteString, @"preview": preview ?: ([UIImage systemImageNamed:@"photo"] ?: [UIImage new]) };
                 dispatch_sync(syncQueue, ^{
                     [normalItems addObject:mediaDict];
                 });

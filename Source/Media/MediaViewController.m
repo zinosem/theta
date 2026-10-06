@@ -110,6 +110,12 @@
 }
 
 - (void)displayVideo {
+    @try {
+        AVAudioSession *session = [AVAudioSession sharedInstance];
+        [session setCategory:AVAudioSessionCategoryPlayback error:nil];
+        [session setActive:YES error:nil];
+    } @catch (__unused NSException *e) {}
+
     AVPlayer *player = [AVPlayer playerWithURL:_mediaURL];
     self.playerViewController = [AVPlayerViewController new];
     self.playerViewController.player = player;

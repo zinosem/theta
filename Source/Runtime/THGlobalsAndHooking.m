@@ -28,7 +28,6 @@ NSString *appVersion;
 NSString *keychainAccessGroup;
 NSURL *fakeGroupContainerURL;
 static BOOL shouldBeSeen = false;
-static BOOL storeUserSearch = NO;
 static NSTimeInterval lastSpamTime = 0;
 static BOOL hooksInitialized = NO;
 static NSTimeInterval s_lastToastShowTime = 0;

@@ -41,8 +41,8 @@ static void hook_hideCreateButton3(id self, SEL _cmd) {
             if ([view isKindOfClass:NSClassFromString(@"IGProfileNavigationHeaderViewButton")]) {
                 UIView *buttonView = ThetaValueForKey(view, @"_view");
                 if ([buttonView isKindOfClass:[UIView class]]) {
-                    NSString *accessibilityLabel = buttonView.accessibilityLabel;
-                    if ([accessibilityLabel isEqualToString:@"Tap to open creation menu"]) {
+                    NSString *acc = [accessibilityLabel lowercaseString];
+                    if ([acc containsString:@"creation"] || [acc containsString:@"création"] || [acc containsString:@"create"]) {
                         if (buttonView.superview) {
                             [buttonView removeFromSuperview];
                         }

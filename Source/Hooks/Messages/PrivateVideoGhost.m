@@ -39,6 +39,11 @@ static void hook_visualmsgghostbuttons(IGDirectVisualMessageViewerController *se
     ThetaSetCaptureHiding(downloadButton);
     ThetaSetCaptureHiding(seenButton);
 
+    UIView *oldDownload = [containerView viewWithTag:77001];
+    if (oldDownload) [oldDownload removeFromSuperview];
+    UIView *oldSeen = [containerView viewWithTag:77002];
+    if (oldSeen) [oldSeen removeFromSuperview];
+
     @try {
         if (downloadVideos && !hideSeenState) {
             [containerView addSubview:downloadButton];
@@ -96,8 +101,11 @@ static void hook_visualmsgghostbuttons(IGDirectVisualMessageViewerController *se
                 }
 
                 if ([medView isKindOfClass:NSClassFromString(@"IGStoryPhotoView")]) {
-                    if ([strongSelf respondsToSelector:@selector(storyPlayerMediaViewDidLoad:loadSource:networkRequestSummary:)]) {
-                        @try { [strongSelf storyPlayerMediaViewDidLoad:medView loadSource:0 networkRequestSummary:0]; } @catch (__unused NSException *e) {}
+                    SEL didLoadSel = @selector(storyPlayerMediaViewDidLoad:loadSource:networkRequestSummary:);
+                    if ([strongSelf respondsToSelector:didLoadSel]) {
+                        @try {
+                            ((void (*)(id, SEL, id, NSInteger, NSInteger))objc_msgSend)(strongSelf, didLoadSel, medView, 0, 0);
+                        } @catch (__unused NSException *e) {}
                     }
                     videoPlayed = YES;
                 }

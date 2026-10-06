@@ -546,17 +546,17 @@ static void downloadAnimatedImage(NSURL *url) {
                     }
                 });
             } else {
-                // Local folder: move into Documents/AudioNotes
-                NSString *audioNotesDir = [documentsPath stringByAppendingPathComponent:@"AudioNotes"];
+                // Local folder: move into Documents/Media
+                NSString *mediaDir = [documentsPath stringByAppendingPathComponent:@"Media"];
                 BOOL isDir = NO;
-                if (![[NSFileManager defaultManager] fileExistsAtPath:audioNotesDir isDirectory:&isDir] || !isDir) {
-                    [[NSFileManager defaultManager] createDirectoryAtPath:audioNotesDir withIntermediateDirectories:YES attributes:nil error:nil];
+                if (![[NSFileManager defaultManager] fileExistsAtPath:mediaDir isDirectory:&isDir] || !isDir) {
+                    [[NSFileManager defaultManager] createDirectoryAtPath:mediaDir withIntermediateDirectories:YES attributes:nil error:nil];
                 }
-                NSString *destPath = [audioNotesDir stringByAppendingPathComponent:[permanentFilePath lastPathComponent]];
+                NSString *destPath = [mediaDir stringByAppendingPathComponent:[permanentFilePath lastPathComponent]];
                 NSError *moveErr = nil;
                 if (![[NSFileManager defaultManager] moveItemAtPath:permanentFilePath toPath:destPath error:&moveErr]) {
                     NSString *unique = [NSString stringWithFormat:@"image-%@.%@", [[NSUUID UUID] UUIDString], fileExtension];
-                    destPath = [audioNotesDir stringByAppendingPathComponent:unique];
+                    destPath = [mediaDir stringByAppendingPathComponent:unique];
                     [[NSFileManager defaultManager] moveItemAtPath:permanentFilePath toPath:destPath error:nil];
                 }
                 dispatch_async(dispatch_get_main_queue(), ^{

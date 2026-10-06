@@ -68,8 +68,9 @@ NSArray *ThetaApplyHideFeedFiltering(NSArray *list, BOOL isMainFeed) {
                 BOOL isExploreInFeed = NO;
                 if ([obj isKindOfClass:%c(IGMedia)] && [obj respondsToSelector:@selector(explorePostInFeed)])
                     isExploreInFeed = [@YES isEqual:((id (*)(id, SEL))objc_msgSend)(obj, @selector(explorePostInFeed))];
-                if (isExploreInFeed
-                    || (grpTitle.length && [[grpTitle lowercaseString] isEqualToString:@"suggested posts"])) {
+                NSString *lowGrp = [grpTitle lowercaseString];
+                BOOL isSuggestedGroup = (lowGrp.length && ([lowGrp containsString:@"suggested"] || [lowGrp containsString:@"suggér"] || [lowGrp containsString:@"suger"] || [lowGrp containsString:@"empfohlen"]));
+                if (isExploreInFeed || isSuggestedGroup) {
                     continue;
                 }
                 if ([obj isKindOfClass:%c(IGInFeedStoriesTrayModel)])

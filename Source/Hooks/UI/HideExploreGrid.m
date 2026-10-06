@@ -1,5 +1,7 @@
 static void (*orig_hideExploreGrid)(id self, SEL _cmd);
 static void hook_hideExploreGrid(id self, SEL _cmd) {
+    orig_hideExploreGrid(self, _cmd);
+
     if (ENABLED(@"Hide Explore Grid")) {
         UIResponder *responder = self;
         while ((responder = [responder nextResponder])) {
@@ -8,11 +10,9 @@ static void hook_hideExploreGrid(id self, SEL _cmd) {
             }
         }
         if ([responder isKindOfClass:NSClassFromString(@"IGExploreGridViewController")]) {
-            [self removeFromSuperview];
-            return;
+            [self setHidden:YES];
         }
     }
-    orig_hideExploreGrid(self, _cmd);
 }
 
 void THRegisterHideExploreGridHooks(void) {

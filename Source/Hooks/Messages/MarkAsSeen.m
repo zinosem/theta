@@ -1142,38 +1142,21 @@ static void hook_seenOnSend(id self, SEL _cmd, id arg1) {
 
 	if (ENABLED(@"Seen On Send")) {
 		@try {
+			id threadViewController = nil;
 			UIViewController *viewController = [ThetaHelper nearestViewController:self];
-			id threadViewController = [viewController valueForKey:@"delegate"];
-			if ([threadViewController isKindOfClass:NSClassFromString(@"IGDirectThreadViewController")]) {
-				if (!theta_hasUnreadFromRecipient(threadViewController)) return;
-				id msgListDataSource = [threadViewController valueForKey:@"_messageListDataSource"];
-				id delegate = [msgListDataSource valueForKey:@"delegate"];
-				id tracker = [delegate valueForKey:@"_lastSeenMessageTracker"];
-
-				if ([threadViewController respondsToSelector:@selector(markLastMessageAsSeen)]) {
-					[threadViewController performSelector:@selector(markLastMessageAsSeen)];
-				} else {
-					[tracker performSelector:@selector(markLastMessageAsSeen)];
-				}
-
-				theta_showMarkedAsSeenToastDeferred();
-			} else if ([threadViewController isKindOfClass:NSClassFromString(@"IGDirectThreadViewComposerViewControllerDelegateController")]) {
-				id threadVC = [[threadViewController valueForKey:@"_messageListDataSource"] valueForKey:@"delegate"];
-				if (threadVC) threadVC = [threadVC valueForKey:@"delegate"];
-				if (threadVC && theta_hasUnreadFromRecipient(threadVC)) {
-					id msgListDataSource = [threadViewController valueForKey:@"_messageListDataSource"];
-					id delegate = [msgListDataSource valueForKey:@"delegate"];
-					id tracker = [delegate valueForKey:@"_lastSeenMessageTracker"];
-
-					if ([delegate respondsToSelector:@selector(markLastMessageAsSeen)]) {
-						[delegate performSelector:@selector(markLastMessageAsSeen)];
-					} else {
-						[tracker performSelector:@selector(markLastMessageAsSeen)];
-					}
-
-					theta_showMarkedAsSeenToastDeferred();
-				}
+			id delegate = ThetaValueForKey(viewController, @"delegate");
+			Class threadCls = s_threadVCClass();
+			if (threadCls && [delegate isKindOfClass:threadCls]) {
+				threadViewController = delegate;
+			} else if (delegate) {
+				id nested = ThetaValueForKey(delegate, @"delegate");
+				if (threadCls && [nested isKindOfClass:threadCls]) threadViewController = nested;
 			}
+			if (!threadViewController) threadViewController = theta_threadVCFromWindow();
+			if (!threadViewController) return;
+			if (!theta_hasUnreadFromRecipient(threadViewController)) return;
+			theta_performMarkLastMessageAsSeen(threadViewController, nil);
+			theta_showMarkedAsSeenToastDeferred();
 		} @catch (NSException *exception) {
 			NSLog(@"Error: %@", exception);
 		}

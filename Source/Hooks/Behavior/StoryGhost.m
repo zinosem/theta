@@ -523,7 +523,7 @@ static void downloadAllMedia(IGStoryFullscreenCell *self) {
 					}
 					
 					if (url && url.absoluteString) {  // Make sure we have a valid URL
-						NSDictionary *mediaDict = @{ @"url": url.absoluteString, @"preview": preview ?: [UIImage systemImageNamed:@"photo"] };
+						NSDictionary *mediaDict = @{ @"url": url.absoluteString, @"preview": preview ?: ([UIImage systemImageNamed:@"photo"] ?: [UIImage new]) };
 						[mediaItems addObject:mediaDict];
 					}
 				}
