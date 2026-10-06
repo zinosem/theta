@@ -219,6 +219,7 @@ static UIColor *THColorFromHexString(NSString *hexString) {
             @{@"title": @"Disable Scrolling Reels", @"detail": @"GET RID OF THE BRAINROT 2."},
         ],
         @"Reels": @[
+            @{@"title": @"Always Play Audio", @"detail": @"Play sound on videos even in silent mode.", @"info": @"When enabled, videos in feed, reels, and stories will play audio even if your phone is in silent mode."},
             @{@"title": @"Tap Controls", @"detail": @"Choose what a single tap does while watching a reel.", @"type": @"segment", @"options": @[@"Default", @"Pause/Play", @"Mute"]},
             @{@"title": @"Always Show Scrubber", @"detail": @"Always show the progress scrubber on reels, regardless of video length.", @"info": @"By default Instagram only shows the progress scrubber on longer videos. This forces it to always appear so you can seek in any reel."},
         ],

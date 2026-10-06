@@ -109,6 +109,45 @@ static void downloadHDVideo(IGVideo *inputVideo) {
 static void downloadHDVideoSelectingURL(IGVideo *inputVideo, NSString *selectedVideoURL) {
     NSData *videoData = ThetaValueForKey(inputVideo, @"dashManifestData");
     if (![videoData isKindOfClass:[NSData class]] || videoData.length == 0) {
+        NSURL *fallbackURL = nil;
+        if ([inputVideo respondsToSelector:@selector(allVideoURLs)]) {
+            id urls = [inputVideo performSelector:@selector(allVideoURLs)];
+            if ([urls isKindOfClass:[NSSet class]] && [(NSSet *)urls count]) {
+                id cand = [(NSSet *)urls anyObject];
+                if ([cand isKindOfClass:[NSURL class]]) fallbackURL = cand;
+                else if ([cand isKindOfClass:[NSString class]]) fallbackURL = [NSURL URLWithString:cand];
+            } else if ([urls isKindOfClass:[NSArray class]] && [(NSArray *)urls count]) {
+                id cand = [(NSArray *)urls lastObject];
+                if ([cand isKindOfClass:[NSURL class]]) fallbackURL = cand;
+                else if ([cand isKindOfClass:[NSString class]]) fallbackURL = [NSURL URLWithString:cand];
+            }
+        }
+        if (!fallbackURL) {
+            NSArray *versions = ThetaValueForKey(inputVideo, @"_videoVersionDictionaries");
+            if (![versions isKindOfClass:[NSArray class]]) versions = ThetaValueForKey(inputVideo, @"videoVersions");
+            if ([versions isKindOfClass:[NSArray class]] && versions.count) {
+                id cand = [versions lastObject];
+                id u = ThetaValueForKey(cand, @"url");
+                if ([u isKindOfClass:[NSURL class]]) fallbackURL = u;
+                else if ([u isKindOfClass:[NSString class]]) fallbackURL = [NSURL URLWithString:u];
+            }
+        }
+        if (fallbackURL) {
+            MediaSelectionViewController *mediaSelectionVC = [[MediaSelectionViewController alloc] init];
+            if (!theta_tryBeginSaveJob()) return;
+            [mediaSelectionVC downloadMediaToTemp:fallbackURL completion:^(NSString *filePath, NSString *fileExtension) {
+                [ThetaHelper endGlobalDownload];
+                if (ENABLED(@"Show Banners")) {
+                    NSInteger saveMethod = [[NSUserDefaults standardUserDefaults] integerForKey:@"Save Method_SegmentIndex"];
+                    if (saveMethod == 0) {
+                        [ThetaHelper showToastWithTitle:@"Saved to camera roll!" subtitle:@"Tap here to go to camera roll." icon:[UIImage systemImageNamed:@"checkmark.circle.fill"] autoHide:4 openURL:[NSURL URLWithString:@"photos-redirect://"]];
+                    } else {
+                        [ThetaHelper showToastWithTitle:@"Saved!" subtitle:@"Saved to Documents." icon:[UIImage systemImageNamed:@"checkmark.circle.fill"] autoHide:4 openURL:nil];
+                    }
+                }
+            }];
+            return;
+        }
         return;
     }
     if (!theta_tryBeginSaveJob()) {
@@ -418,6 +457,18 @@ static void downloadHDVideoSelectingURL(IGVideo *inputVideo, NSString *selectedV
             dispatch_semaphore_wait(audioSem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(20 * NSEC_PER_SEC)));
             audioTrackForMerge = [[audioAssetForMerge tracksWithMediaType:AVMediaTypeAudio] firstObject];
         }
+
+        // CRITICAL RECOVERY: If separate audio track was not found or hasAudio was NO,
+        // check if the downloaded video file itself already contains an embedded audio track!
+        if (!audioTrackForMerge) {
+            AVAssetTrack *embeddedTrack = [[videoAssetForMerge tracksWithMediaType:AVMediaTypeAudio] firstObject];
+            if (embeddedTrack) {
+                audioTrackForMerge = embeddedTrack;
+                audioAssetForMerge = videoAssetForMerge;
+                hasAudio = YES;
+                NSLog(@"ThetaSave: Using embedded audio track from video file");
+            }
+        }
         
         CMTime videoDur = videoAssetForMerge.duration;
         CMTime mergeDur = videoDur;
@@ -448,11 +499,10 @@ static void downloadHDVideoSelectingURL(IGVideo *inputVideo, NSString *selectedV
             [compositionAudioTrack insertTimeRange:mergeRange ofTrack:audioTrackForMerge atTime:kCMTimeZero error:&audioInsertError];
             if (audioInsertError) {
                 NSLog(@"Error adding audio track: %@", audioInsertError);
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    showCompletionToast(progressToast, NO, @"Error", @"Could not merge audio", [UIImage systemImageNamed:@"exclamationmark.triangle"], nil);
-                });
-                finishJob();
-                return;
+                AVAssetTrack *embeddedFallback = [[videoAssetForMerge tracksWithMediaType:AVMediaTypeAudio] firstObject];
+                if (embeddedFallback && embeddedFallback != audioTrackForMerge) {
+                    [compositionAudioTrack insertTimeRange:mergeRange ofTrack:embeddedFallback atTime:kCMTimeZero error:nil];
+                }
             }
         } else if (hasAudio) {
             NSLog(@"Warning: No decodable audio track in downloaded audio file");
@@ -474,6 +524,21 @@ static void downloadHDVideoSelectingURL(IGVideo *inputVideo, NSString *selectedV
                 NSArray<AVAssetTrack *> *mergedAudioTracks = [mergedAsset tracksWithMediaType:AVMediaTypeAudio];
                 if (hasAudio && mergedAudioTracks.count <= 0) {
                     NSLog(@"ThetaSave: export completed without an audio track (DASH audio may be unsupported)");
+                    NSArray<AVAssetTrack *> *origVideoAudio = [videoAssetForMerge tracksWithMediaType:AVMediaTypeAudio];
+                    if (origVideoAudio.count > 0) {
+                        NSLog(@"ThetaSave: Falling back to original video file with audio");
+                        [fm removeItemAtPath:outputPath error:nil];
+                        [fm copyItemAtPath:videoPath toPath:outputPath error:nil];
+                    } else if ([fm fileExistsAtPath:audioPath]) {
+                        NSString *remuxPath = [workDir stringByAppendingPathComponent:@"output_remux.mp4"];
+                        NSError *remuxErr = nil;
+                        BOOL remuxOK = [AV1Transcoder transcodeAV1ToH264:videoPath outputPath:remuxPath audioPath:audioPath error:&remuxErr progressBlock:nil];
+                        if (remuxOK && [fm fileExistsAtPath:remuxPath]) {
+                            [fm removeItemAtPath:outputPath error:nil];
+                            [fm moveItemAtPath:remuxPath toPath:outputPath error:nil];
+                            NSLog(@"ThetaSave: Recovered audio via FFmpeg remux");
+                        }
+                    }
                 }
                 
                 // Check and request photo library authorization

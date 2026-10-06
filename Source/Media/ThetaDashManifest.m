@@ -429,10 +429,14 @@ static NSString *ThetaDashExtractBaseURLAfterRangeInBlock(NSString *block, NSRan
     } else {
         searchLimit = NSMakeRange(afterRep.location, nextRep.location - afterRep.location);
     }
-    NSRange baseStart = [block rangeOfString:@"<BaseURL>" options:0 range:searchLimit];
+    NSRange baseStart = [block rangeOfString:@"<BaseURL" options:0 range:searchLimit];
+    if (baseStart.location == NSNotFound) return nil;
+    NSRange tagCloseRange = NSMakeRange(baseStart.location, searchLimit.length - (baseStart.location - searchLimit.location));
+    NSRange tagClose = [block rangeOfString:@">" options:0 range:tagCloseRange];
+    if (tagClose.location == NSNotFound) return nil;
     NSRange baseEnd = [block rangeOfString:@"</BaseURL>" options:0 range:searchLimit];
-    if (baseStart.location == NSNotFound || baseEnd.location == NSNotFound) return nil;
-    NSUInteger uStart = baseStart.location + baseStart.length;
+    if (baseEnd.location == NSNotFound || baseEnd.location <= NSMaxRange(tagClose)) return nil;
+    NSUInteger uStart = NSMaxRange(tagClose);
     NSString *u = [block substringWithRange:NSMakeRange(uStart, baseEnd.location - uStart)];
     return [u stringByReplacingOccurrencesOfString:@"&amp;" withString:@"&"];
 }
@@ -442,7 +446,7 @@ static NSInteger ThetaDashAudioCompatibilityScore(NSString *codecs) {
     if ([c hasPrefix:@"mp4a.40.2"]) return 400;   // AAC-LC
     if ([c hasPrefix:@"mp4a.40.5"]) return 300;   // HE-AAC
     if ([c hasPrefix:@"mp4a.40.29"]) return 250;  // HE-AACv2
-    if ([c hasPrefix:@"mp4a.40.42"]) return 20;   // xHE-AAC / USAC
+    if ([c hasPrefix:@"mp4a.40.42"]) return 200;  // xHE-AAC / USAC
     if ([c hasPrefix:@"mp4a"]) return 200;
     if ([c containsString:@"opus"]) return 80;
     if ([c hasPrefix:@"ec-3"] || [c hasPrefix:@"ac-3"]) return 60;
@@ -466,7 +470,6 @@ NSString *IGDashManifestBestAudioURL(NSString *manifest) {
         NSString *contentType = [ThetaDashXMLAttr(setTag, @"contentType") lowercaseString];
         NSString *mimeType = [ThetaDashXMLAttr(setTag, @"mimeType") lowercaseString];
         BOOL isAudio = [contentType isEqualToString:@"audio"] || [mimeType hasPrefix:@"audio"];
-        if (!isAudio) continue;
 
         NSRange fromStart = NSMakeRange(setMatch.range.location, manifest.length - setMatch.range.location);
         NSRange close = [manifest rangeOfString:@"</AdaptationSet>" options:0 range:fromStart];
@@ -474,6 +477,16 @@ NSString *IGDashManifestBestAudioURL(NSString *manifest) {
 
         NSRange blockRange = NSMakeRange(setMatch.range.location, NSMaxRange(close) - setMatch.range.location);
         NSString *block = [manifest substringWithRange:blockRange];
+
+        if (!isAudio) {
+            if ([block rangeOfString:@"mimeType=\"audio" options:NSCaseInsensitiveSearch].location != NSNotFound ||
+                [block rangeOfString:@"mimeType='audio" options:NSCaseInsensitiveSearch].location != NSNotFound ||
+                [block rangeOfString:@"codecs=\"mp4a" options:NSCaseInsensitiveSearch].location != NSNotFound ||
+                [block rangeOfString:@"codecs=\"opus" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+                isAudio = YES;
+            }
+        }
+        if (!isAudio) continue;
         NSArray<NSTextCheckingResult *> *repMatches = [repRe matchesInString:block options:0 range:NSMakeRange(0, block.length)];
         for (NSTextCheckingResult *rm in repMatches) {
             NSString *tag = [block substringWithRange:rm.range];
@@ -539,13 +552,15 @@ static NSString *ThetaRenameAudioByMagic(NSString *path) {
     if (!path.length) return path;
     NSFileHandle *handle = [NSFileHandle fileHandleForReadingAtPath:path];
     if (!handle) return path;
-    NSData *head = [handle readDataOfLength:12];
+    NSData *head = [handle readDataOfLength:16];
     [handle closeFile];
     BOOL isMP4 = NO;
     BOOL isADTS = NO;
     if (head.length >= 8) {
         const unsigned char *bytes = head.bytes;
-        isMP4 = (bytes[4] == 'f' && bytes[5] == 't' && bytes[6] == 'y' && bytes[7] == 'p');
+        isMP4 = (bytes[4] == 'f' && bytes[5] == 't' && bytes[6] == 'y' && bytes[7] == 'p') ||
+                (bytes[4] == 's' && bytes[5] == 't' && bytes[6] == 'y' && bytes[7] == 'p') ||
+                (bytes[4] == 'm' && bytes[5] == 'o' && bytes[6] == 'o' && (bytes[7] == 'v' || bytes[7] == 'f'));
         isADTS = (bytes[0] == 0xFF && (bytes[1] & 0xF0) == 0xF0);
     }
     NSString *ext = isADTS ? @"aac" : @"m4a";
@@ -576,7 +591,7 @@ static NSString *ThetaTranscodeAudioToM4A(AVAsset *asset, NSString *sourcePath) 
         if (!ok) NSLog(@"ThetaPrepareDashAudioForMerge: AAC export failed %@ status %ld", session.error, (long)session.status);
         dispatch_semaphore_signal(sem);
     }];
-    dispatch_semaphore_wait(sem, DISPATCH_TIME_FOREVER);
+    dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(15 * NSEC_PER_SEC)));
     NSDictionary *attrs = [fm attributesOfItemAtPath:outPath error:nil];
     if (ok && attrs.fileSize > 0) return outPath;
     [fm removeItemAtPath:outPath error:nil];
@@ -607,6 +622,11 @@ NSString *ThetaPrepareDashAudioForMerge(NSString *audioPath) {
         NSLog(@"ThetaPrepareDashAudioForMerge: using original audio (AAC export unavailable)");
         return path;
     }
+    // Fallback: If track wasn't immediately resolved by AVURLAsset, return path if file exists and has size
+    if (attrs.fileSize > 0) {
+        NSLog(@"ThetaPrepareDashAudioForMerge: returning original audio file for merge attempt: %@", path);
+        return path;
+    }
     NSLog(@"ThetaPrepareDashAudioForMerge: no decodable audio track in %@", path);
     return nil;
 }
@@ -634,21 +654,30 @@ BOOL ThetaExportPhotosCompatibleMP4(NSString *videoPath, NSString *audioPath, BO
     if (hasAudio && audioPath.length && [fm fileExistsAtPath:audioPath]) {
         preparedAudio = ThetaPrepareDashAudioForMerge(audioPath);
     }
+    AVAsset *audioAsset = nil;
+    AVAssetTrack *audioTrack = nil;
     if (preparedAudio.length) {
-        AVAsset *audioAsset = [AVURLAsset URLAssetWithURL:[NSURL fileURLWithPath:preparedAudio] options:@{AVURLAssetPreferPreciseDurationAndTimingKey: @YES}];
+        audioAsset = [AVURLAsset URLAssetWithURL:[NSURL fileURLWithPath:preparedAudio] options:@{AVURLAssetPreferPreciseDurationAndTimingKey: @YES}];
         ThetaAVAssetLoadKeys(audioAsset);
-        AVAssetTrack *audioTrack = [[audioAsset tracksWithMediaType:AVMediaTypeAudio] firstObject];
+        audioTrack = [[audioAsset tracksWithMediaType:AVMediaTypeAudio] firstObject];
+    }
+    // Check if original video already has an embedded audio track
+    if (!audioTrack) {
+        audioTrack = [[videoAsset tracksWithMediaType:AVMediaTypeAudio] firstObject];
         if (audioTrack) {
-            AVMutableCompositionTrack *compAudio = [composition addMutableTrackWithMediaType:AVMediaTypeAudio preferredTrackID:kCMPersistentTrackID_Invalid];
-            CMTime audioDur = audioAsset.duration;
-            CMTime mergeDur = CMTIME_IS_NUMERIC(audioDur) ? CMTimeMinimum(videoDur, audioDur) : videoDur;
-            NSError *audioErr = nil;
-            if (![compAudio insertTimeRange:CMTimeRangeMake(kCMTimeZero, mergeDur) ofTrack:audioTrack atTime:kCMTimeZero error:&audioErr] || audioErr) {
-                NSLog(@"ThetaExportPhotosCompatibleMP4: audio insert failed %@", audioErr);
-            }
-        } else {
-            NSLog(@"ThetaExportPhotosCompatibleMP4: prepared audio has no track");
+            audioAsset = videoAsset;
         }
+    }
+    if (audioTrack) {
+        AVMutableCompositionTrack *compAudio = [composition addMutableTrackWithMediaType:AVMediaTypeAudio preferredTrackID:kCMPersistentTrackID_Invalid];
+        CMTime audioDur = audioAsset.duration;
+        CMTime mergeDur = CMTIME_IS_NUMERIC(audioDur) ? CMTimeMinimum(videoDur, audioDur) : videoDur;
+        NSError *audioErr = nil;
+        if (![compAudio insertTimeRange:CMTimeRangeMake(kCMTimeZero, mergeDur) ofTrack:audioTrack atTime:kCMTimeZero error:&audioErr] || audioErr) {
+            NSLog(@"ThetaExportPhotosCompatibleMP4: audio insert failed %@", audioErr);
+        }
+    } else {
+        NSLog(@"ThetaExportPhotosCompatibleMP4: no audio track to merge");
     }
 
     NSArray<NSString *> *preferred = @[

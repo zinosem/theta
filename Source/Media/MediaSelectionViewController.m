@@ -1762,6 +1762,13 @@ static void * const playerKey = &playerKey;
                         audioAssetForMerge = [AVAsset assetWithURL:[NSURL fileURLWithPath:audioPath]];
                         audioTrackForMerge = [[audioAssetForMerge tracksWithMediaType:AVMediaTypeAudio] firstObject];
                     }
+                    if (!audioTrackForMerge) {
+                        AVAssetTrack *embeddedTrack = [[videoAsset tracksWithMediaType:AVMediaTypeAudio] firstObject];
+                        if (embeddedTrack) {
+                            audioTrackForMerge = embeddedTrack;
+                            audioAssetForMerge = videoAsset;
+                        }
+                    }
                     
                     CMTime videoDur = videoAsset.duration;
                     CMTime mergeDur = videoDur;
@@ -1806,6 +1813,10 @@ static void * const playerKey = &playerKey;
                         [compositionAudioTrack insertTimeRange:mergeRange ofTrack:audioTrackForMerge atTime:kCMTimeZero error:&audioInsertError];
                         if (audioInsertError) {
                             NSLog(@"Error adding audio track for video %ld: %@", (long)videoIndex, audioInsertError);
+                            AVAssetTrack *embeddedFallback = [[videoAsset tracksWithMediaType:AVMediaTypeAudio] firstObject];
+                            if (embeddedFallback && embeddedFallback != audioTrackForMerge) {
+                                [compositionAudioTrack insertTimeRange:mergeRange ofTrack:embeddedFallback atTime:kCMTimeZero error:nil];
+                            }
                         }
                     }
                     
@@ -1824,7 +1835,14 @@ static void * const playerKey = &playerKey;
                     
                     dispatch_semaphore_signal(transcodeSemaphore);
                     
-                    if (exportSession.status != AVAssetExportSessionStatusCompleted) {
+                    if (exportSession.status == AVAssetExportSessionStatusCompleted) {
+                        AVAsset *mergedAsset = [AVAsset assetWithURL:[NSURL fileURLWithPath:outputPath]];
+                        if ([mergedAsset tracksWithMediaType:AVMediaTypeAudio].count == 0 && [[videoAsset tracksWithMediaType:AVMediaTypeAudio] count] > 0) {
+                            [fm removeItemAtPath:outputPath error:nil];
+                            [fm copyItemAtPath:videoPath toPath:outputPath error:nil];
+                            NSLog(@"MediaSelectionVC: Restored embedded audio from original video %ld", (long)videoIndex);
+                        }
+                    } else if (exportSession.status != AVAssetExportSessionStatusCompleted) {
                         NSLog(@"Export failed for video %ld: %@", (long)videoIndex, exportSession.error);
                         
                         // Cleanup

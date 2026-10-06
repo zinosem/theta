@@ -12,6 +12,7 @@ static void InitializeHooks(void) {
     THRegisterDateFormatHooks();
     THRegisterLiquidGlassHooks();
     THRegisterTapControlsHooks();
+    THRegisterAlwaysPlayAudioHooks();
     THRegisterFullLastActiveHooks();
     THRegisterSendFileHooks();
     THRegisterNavigationHooks();
