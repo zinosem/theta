@@ -18,14 +18,20 @@ static NSString *THDateFormatPattern(NSInteger idx, BOOL withTime) {
 }
 
 static NSString *THFormattedDate(NSDate *date) {
+    if (!date) return nil;
     NSInteger idx = [[NSUserDefaults standardUserDefaults] integerForKey:@"Date Format_SegmentIndex"];
     if (idx <= 0) return nil;
     NSString *pattern = THDateFormatPattern(idx, YES);
     if (!pattern) return nil;
-    static NSDateFormatter *df = nil;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{ df = [NSDateFormatter new]; });
-    df.dateFormat = pattern;
+    NSMutableDictionary *dict = [[NSThread currentThread] threadDictionary];
+    NSString *cacheKey = [NSString stringWithFormat:@"theta_df_%@", pattern];
+    NSDateFormatter *df = dict[cacheKey];
+    if (!df) {
+        df = [NSDateFormatter new];
+        df.locale = [NSLocale currentLocale];
+        df.dateFormat = pattern;
+        dict[cacheKey] = df;
+    }
     return [df stringFromDate:date];
 }
 
