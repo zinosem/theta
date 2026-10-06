@@ -296,12 +296,12 @@ void THStorySeenReceiptNetworkGuardLeave(void) {
 static id (*orig_pendingStoreInit)(id, SEL, id, id, id, BOOL);
 static id hook_pendingStoreInit(id self, SEL _cmd, id sessionPK, id uploader, id fileMgr, BOOL bgTask) {
     if (uploader) thetaLegacySeenUploader = uploader;
-    return orig_pendingStoreInit(self, _cmd, sessionPK, uploader, fileMgr, bgTask);
+    return orig_pendingStoreInit ? orig_pendingStoreInit(self, _cmd, sessionPK, uploader, fileMgr, bgTask) : self;
 }
 
 static id (*orig_sundialMgrInit)(id, SEL, id, id, id, id);
 static id hook_sundialMgrInit(id self, SEL _cmd, id networker, id diskMgr, id launcherSet, id announcer) {
-    id res = orig_sundialMgrInit(self, _cmd, networker, diskMgr, launcherSet, announcer);
+    id res = orig_sundialMgrInit ? orig_sundialMgrInit(self, _cmd, networker, diskMgr, launcherSet, announcer) : self;
     if (res) thetaSundialSeenManager = res;
     return res;
 }
@@ -315,85 +315,85 @@ static BOOL theta_blockSeenReceipts(void) {
 static void (*orig_sundialUploadSeenStateIfNecessary)(id, SEL);
 static void hook_sundialUploadSeenStateIfNecessary(id self, SEL _cmd) {
     if (theta_blockSeenReceipts()) return;
-    orig_sundialUploadSeenStateIfNecessary(self, _cmd);
+    if (orig_sundialUploadSeenStateIfNecessary) orig_sundialUploadSeenStateIfNecessary(self, _cmd);
 }
 
 static void (*orig_sundialAppendSeenState)(id, SEL, id);
 static void hook_sundialAppendSeenState(id self, SEL _cmd, id payload) {
     if (theta_blockSeenReceipts()) return;
-    orig_sundialAppendSeenState(self, _cmd, payload);
+    if (orig_sundialAppendSeenState) orig_sundialAppendSeenState(self, _cmd, payload);
 }
 
 static void (*orig_uploadSeenMedia)(id, SEL, id);
 static void hook_uploadSeenMedia(id self, SEL _cmd, id media) {
     if (theta_blockSeenReceipts()) return;
-    orig_uploadSeenMedia(self, _cmd, media);
+    if (orig_uploadSeenMedia) orig_uploadSeenMedia(self, _cmd, media);
 }
 
 static void (*orig_uploadSeenState)(id, SEL);
 static void hook_uploadSeenState(id self, SEL _cmd) {
     if (theta_blockSeenReceipts()) return;
-    orig_uploadSeenState(self, _cmd);
+    if (orig_uploadSeenState) orig_uploadSeenState(self, _cmd);
 }
 
 static void (*orig_uploadSeenStateArg)(id, SEL, id);
 static void hook_uploadSeenStateArg(id self, SEL _cmd, id arg1) {
     if (theta_blockSeenReceipts()) return;
-    orig_uploadSeenStateArg(self, _cmd, arg1);
+    if (orig_uploadSeenStateArg) orig_uploadSeenStateArg(self, _cmd, arg1);
 }
 
 static void (*orig_sendSeenReceipt)(id, SEL, id);
 static void hook_sendSeenReceipt(id self, SEL _cmd, id arg1) {
     if (theta_blockSeenReceipts()) return;
-    orig_sendSeenReceipt(self, _cmd, arg1);
+    if (orig_sendSeenReceipt) orig_sendSeenReceipt(self, _cmd, arg1);
 }
 
 static void (*orig_sendSeenRequestForCurrentItem)(id, SEL);
 static void hook_sendSeenRequestForCurrentItem(id self, SEL _cmd) {
     if (theta_blockSeenReceipts()) return;
-    orig_sendSeenRequestForCurrentItem(self, _cmd);
+    if (orig_sendSeenRequestForCurrentItem) orig_sendSeenRequestForCurrentItem(self, _cmd);
 }
 
 static void (*orig_sendSeenRequestForCurrentItemPriv)(id, SEL);
 static void hook_sendSeenRequestForCurrentItemPriv(id self, SEL _cmd) {
     if (theta_blockSeenReceipts()) return;
-    orig_sendSeenRequestForCurrentItemPriv(self, _cmd);
+    if (orig_sendSeenRequestForCurrentItemPriv) orig_sendSeenRequestForCurrentItemPriv(self, _cmd);
 }
 
 static void (*orig_enqueueSeenStateForMedia)(id, SEL, id);
 static void hook_enqueueSeenStateForMedia(id self, SEL _cmd, id media) {
     if (theta_blockSeenReceipts()) return;
-    orig_enqueueSeenStateForMedia(self, _cmd, media);
+    if (orig_enqueueSeenStateForMedia) orig_enqueueSeenStateForMedia(self, _cmd, media);
 }
 
 static void (*orig_uploadSeenStateWithStoryItem)(id, SEL, id);
 static void hook_uploadSeenStateWithStoryItem(id self, SEL _cmd, id storyItem) {
     if (theta_blockSeenReceipts()) return;
-    orig_uploadSeenStateWithStoryItem(self, _cmd, storyItem);
+    if (orig_uploadSeenStateWithStoryItem) orig_uploadSeenStateWithStoryItem(self, _cmd, storyItem);
 }
 
 static void (*orig_enqueueSeenStateWithStoryItem)(id, SEL, id);
 static void hook_enqueueSeenStateWithStoryItem(id self, SEL _cmd, id storyItem) {
     if (theta_blockSeenReceipts()) return;
-    orig_enqueueSeenStateWithStoryItem(self, _cmd, storyItem);
+    if (orig_enqueueSeenStateWithStoryItem) orig_enqueueSeenStateWithStoryItem(self, _cmd, storyItem);
 }
 
 static void (*orig_sectionFlushQueuedSeenRequests)(id, SEL);
 static void hook_sectionFlushQueuedSeenRequests(id self, SEL _cmd) {
     if (theta_blockSeenReceipts()) return;
-    orig_sectionFlushQueuedSeenRequests(self, _cmd);
+    if (orig_sectionFlushQueuedSeenRequests) orig_sectionFlushQueuedSeenRequests(self, _cmd);
 }
 
 static void (*orig_sectionFlushQueuedSeenRequestsPriv)(id, SEL);
 static void hook_sectionFlushQueuedSeenRequestsPriv(id self, SEL _cmd) {
     if (theta_blockSeenReceipts()) return;
-    orig_sectionFlushQueuedSeenRequestsPriv(self, _cmd);
+    if (orig_sectionFlushQueuedSeenRequestsPriv) orig_sectionFlushQueuedSeenRequestsPriv(self, _cmd);
 }
 
 static void (*orig_sectionEnqueueSeenForPlayhead)(id, SEL);
 static void hook_sectionEnqueueSeenForPlayhead(id self, SEL _cmd) {
     if (theta_blockSeenReceipts()) return;
-    orig_sectionEnqueueSeenForPlayhead(self, _cmd);
+    if (orig_sectionEnqueueSeenForPlayhead) orig_sectionEnqueueSeenForPlayhead(self, _cmd);
 }
 
 #pragma mark - Pending store (blocks secondary flush paths)
@@ -401,31 +401,31 @@ static void hook_sectionEnqueueSeenForPlayhead(id self, SEL _cmd) {
 static void (*orig_pendingFlushSeenStates)(id, SEL);
 static void hook_pendingFlushSeenStates(id self, SEL _cmd) {
     if (theta_blockSeenReceipts()) return;
-    orig_pendingFlushSeenStates(self, _cmd);
+    if (orig_pendingFlushSeenStates) orig_pendingFlushSeenStates(self, _cmd);
 }
 
 static void (*orig_pendingFlushSeenStatesPriv)(id, SEL);
 static void hook_pendingFlushSeenStatesPriv(id self, SEL _cmd) {
     if (theta_blockSeenReceipts()) return;
-    orig_pendingFlushSeenStatesPriv(self, _cmd);
+    if (orig_pendingFlushSeenStatesPriv) orig_pendingFlushSeenStatesPriv(self, _cmd);
 }
 
 static void (*orig_pendingUploadSeenStates)(id, SEL);
 static void hook_pendingUploadSeenStates(id self, SEL _cmd) {
     if (theta_blockSeenReceipts()) return;
-    orig_pendingUploadSeenStates(self, _cmd);
+    if (orig_pendingUploadSeenStates) orig_pendingUploadSeenStates(self, _cmd);
 }
 
 static void (*orig_pendingUploadSeenStatesPriv)(id, SEL);
 static void hook_pendingUploadSeenStatesPriv(id self, SEL _cmd) {
     if (theta_blockSeenReceipts()) return;
-    orig_pendingUploadSeenStatesPriv(self, _cmd);
+    if (orig_pendingUploadSeenStatesPriv) orig_pendingUploadSeenStatesPriv(self, _cmd);
 }
 
 static void (*orig_storyViewerDisappear)(id, SEL, BOOL);
 static void hook_storyViewerDisappear(id self, SEL _cmd, BOOL anim) {
     THStorySeenReceiptNetworkGuardLeave();
-    orig_storyViewerDisappear(self, _cmd, anim);
+    if (orig_storyViewerDisappear) orig_storyViewerDisappear(self, _cmd, anim);
 }
 
 void THRegisterStorySeenLocalOnlyHooks(void) {

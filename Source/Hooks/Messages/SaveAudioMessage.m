@@ -1,7 +1,7 @@
 static void (*orig_audioMessage)(id self, SEL _cmd, id audio, CGFloat progress, id assetId, id offlineAssetId, NSInteger messageProductType, id threadKey);
 static char theta_audio_url_key;
 static void hook_audioMessage(id self, SEL _cmd, id audio, CGFloat progress, id assetId, id offlineAssetId, NSInteger messageProductType, id threadKey) {
-    orig_audioMessage(self, _cmd, audio, progress, assetId, offlineAssetId, messageProductType, threadKey);
+    if (orig_audioMessage) orig_audioMessage(self, _cmd, audio, progress, assetId, offlineAssetId, messageProductType, threadKey);
 
     @try {
         if (ENABLED(@"Save Audio Messages")) {
@@ -34,7 +34,7 @@ static void hook_audioMessage(id self, SEL _cmd, id audio, CGFloat progress, id 
 
 static void (*orig_audioPlayerDidPlayToEnd)(id self, SEL _cmd, id arg1);
 static void hook_audioPlayerDidPlayToEnd(id self, SEL _cmd, id arg1) {
-    orig_audioPlayerDidPlayToEnd(self, _cmd, arg1);
+    if (orig_audioPlayerDidPlayToEnd) orig_audioPlayerDidPlayToEnd(self, _cmd, arg1);
     
     if (ENABLED(@"Save Audio Messages")) {
         NSURL *url = objc_getAssociatedObject(self, &theta_audio_url_key);

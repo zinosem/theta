@@ -19,32 +19,32 @@ static void theta_runLikeConfirmation(NSString *mediaType, void (^invokeOrig)(vo
 
 static void (*orig_likeConfirmation)(id self, SEL _cmd, id arg1);
 static void hook_likeConfirmation(id self, SEL _cmd, id arg1) {
-    theta_runLikeConfirmation(@"post", ^{ orig_likeConfirmation(self, _cmd, arg1); });
+    theta_runLikeConfirmation(@"post", ^{ if (orig_likeConfirmation) orig_likeConfirmation(self, _cmd, arg1); });
 }
 
 static void (*orig_likeConfirmation2)(id self, SEL _cmd, id arg1, id arg2);
 static void hook_likeConfirmation2(id self, SEL _cmd, id arg1, id arg2) {
-    theta_runLikeConfirmation(@"reel", ^{ orig_likeConfirmation2(self, _cmd, arg1, arg2); });
+    theta_runLikeConfirmation(@"reel", ^{ if (orig_likeConfirmation2) orig_likeConfirmation2(self, _cmd, arg1, arg2); });
 }
 
 static void (*orig_likeConfirmation3)(id self, SEL _cmd, id arg1);
 static void hook_likeConfirmation3(id self, SEL _cmd, id arg1) {
-    theta_runLikeConfirmation(@"photo", ^{ orig_likeConfirmation3(self, _cmd, arg1); });
+    theta_runLikeConfirmation(@"photo", ^{ if (orig_likeConfirmation3) orig_likeConfirmation3(self, _cmd, arg1); });
 }
 
 static void (*orig_likeConfirmation4)(id self, SEL _cmd, id arg1);
 static void hook_likeConfirmation4(id self, SEL _cmd, id arg1) {
-    theta_runLikeConfirmation(@"post", ^{ orig_likeConfirmation4(self, _cmd, arg1); });
+    theta_runLikeConfirmation(@"post", ^{ if (orig_likeConfirmation4) orig_likeConfirmation4(self, _cmd, arg1); });
 }
 
 static void (*orig_likeConfirmation5)(id self, SEL _cmd, id arg1);
 static void hook_likeConfirmation5(id self, SEL _cmd, id arg1) {
-    theta_runLikeConfirmation(@"post", ^{ orig_likeConfirmation5(self, _cmd, arg1); });
+    theta_runLikeConfirmation(@"post", ^{ if (orig_likeConfirmation5) orig_likeConfirmation5(self, _cmd, arg1); });
 }
 
 static void (*orig_likeConfirmation6)(id self, SEL _cmd);
 static void hook_likeConfirmation6(id self, SEL _cmd) {
-    theta_runLikeConfirmation(@"post", ^{ orig_likeConfirmation6(self, _cmd); });
+    theta_runLikeConfirmation(@"post", ^{ if (orig_likeConfirmation6) orig_likeConfirmation6(self, _cmd); });
 }
 
 void THRegisterLikeConfirmationHooks(void) {

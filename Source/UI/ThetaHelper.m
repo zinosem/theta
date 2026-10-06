@@ -137,27 +137,24 @@ static volatile BOOL sGlobalDownloadInProgress = NO;
 #pragma mark - Image Utilities
 
 + (UIImage *)imageFromEmojiString:(NSString *)emojiString width:(CGFloat)width {
-    NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
-    paragraphStyle.alignment = NSTextAlignmentCenter;
-    
-    CGFloat fontSize = width * 0.8;
-    
-    NSAttributedString *attributedString = [[NSAttributedString alloc] initWithString:emojiString attributes:@{
-        NSFontAttributeName: [UIFont systemFontOfSize:fontSize],
-        NSParagraphStyleAttributeName: paragraphStyle
-    }];
-    
-    UIGraphicsBeginImageContextWithOptions(CGSizeMake(width, width), NO, 0);
-    UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, width, width)];
-    label.attributedText = attributedString;
-    label.textAlignment = NSTextAlignmentCenter;
-    label.baselineAdjustment = UIBaselineAdjustmentAlignCenters;
-    
-    [label drawTextInRect:label.bounds];
-    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-    
-    return image;
+	if (!emojiString.length || width <= 0) return nil;
+	NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
+	paragraphStyle.alignment = NSTextAlignmentCenter;
+
+	CGFloat fontSize = width * 0.8;
+
+	NSAttributedString *attributedString = [[NSAttributedString alloc] initWithString:emojiString attributes:@{
+		NSFontAttributeName: [UIFont systemFontOfSize:fontSize],
+		NSParagraphStyleAttributeName: paragraphStyle
+	}];
+
+	UIGraphicsBeginImageContextWithOptions(CGSizeMake(width, width), NO, 0);
+	CGRect rect = CGRectMake(0, (width - fontSize) / 2.0, width, fontSize * 1.2);
+	[attributedString drawInRect:rect];
+	UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+	UIGraphicsEndImageContext();
+
+	return image;
 }
 
 #pragma mark - File Management

@@ -21,5 +21,5 @@ static id hook_userSession(id self, SEL _cmd) {
         });
     }
     
-    return orig_userSession(self, _cmd);
+    return orig_userSession ? orig_userSession(self, _cmd) : nil;
 }

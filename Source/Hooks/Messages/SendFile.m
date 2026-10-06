@@ -68,7 +68,7 @@ static void THShowFilePicker(UIViewController *threadVC) {
 static id (*orig_IGDSMenu_init)(id, SEL, NSArray *, BOOL, id);
 static id hook_IGDSMenu_init(id self, SEL _cmd, NSArray *items, BOOL edr, id header) {
     if (!ENABLED(@"Send Files") || !sTHFileMenuPending) {
-        return orig_IGDSMenu_init(self, _cmd, items, edr, header);
+        return orig_IGDSMenu_init ? orig_IGDSMenu_init(self, _cmd, items, edr, header) : self;
     }
     sTHFileMenuPending = NO;
 
@@ -77,13 +77,13 @@ static id hook_IGDSMenu_init(id self, SEL _cmd, NSArray *items, BOOL edr, id hea
         if ([item respondsToSelector:NSSelectorFromString(@"title")]) {
             id title = [item valueForKey:@"title"];
             if ([title isKindOfClass:[NSString class]] && [title isEqualToString:@"Send File"]) {
-                return orig_IGDSMenu_init(self, _cmd, items, edr, header);
+                return orig_IGDSMenu_init ? orig_IGDSMenu_init(self, _cmd, items, edr, header) : self;
             }
         }
     }
 
     Class itemClass = NSClassFromString(@"IGDSMenuItem");
-    if (!itemClass) return orig_IGDSMenu_init(self, _cmd, items, edr, header);
+    if (!itemClass) return orig_IGDSMenu_init ? orig_IGDSMenu_init(self, _cmd, items, edr, header) : self;
 
     UIImage *img = [[UIImage systemImageNamed:@"doc"] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
     void (^handler)(void) = ^{
@@ -92,23 +92,23 @@ static id hook_IGDSMenu_init(id self, SEL _cmd, NSArray *items, BOOL edr, id hea
 
     SEL initSel = @selector(initWithTitle:image:handler:);
     if (![itemClass instancesRespondToSelector:initSel]) {
-        return orig_IGDSMenu_init(self, _cmd, items, edr, header);
+        return orig_IGDSMenu_init ? orig_IGDSMenu_init(self, _cmd, items, edr, header) : self;
     }
 
     typedef id (*InitFn)(id, SEL, id, id, id);
     id fileItem = ((InitFn)objc_msgSend)([itemClass alloc], initSel, @"Send File", img, handler);
-    if (!fileItem) return orig_IGDSMenu_init(self, _cmd, items, edr, header);
+    if (!fileItem) return orig_IGDSMenu_init ? orig_IGDSMenu_init(self, _cmd, items, edr, header) : self;
 
     NSMutableArray *newItems = [NSMutableArray arrayWithObject:fileItem];
     [newItems addObjectsFromArray:items];
-    return orig_IGDSMenu_init(self, _cmd, newItems, edr, header);
+    return orig_IGDSMenu_init ? orig_IGDSMenu_init(self, _cmd, newItems, edr, header) : self;
 }
 
 // MARK: - Thread VC hook
 
 static void (*orig_composerOverflow)(id, SEL, id);
 static void hook_composerOverflow(id self, SEL _cmd, id plusButton) {
-    orig_composerOverflow(self, _cmd, plusButton);
+    if (orig_composerOverflow) orig_composerOverflow(self, _cmd, plusButton);
     if (!ENABLED(@"Send Files")) return;
     sTHFileThreadVC = (UIViewController *)self;
     sTHFileMenuPending = YES;

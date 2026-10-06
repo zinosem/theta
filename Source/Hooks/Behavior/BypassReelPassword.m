@@ -361,7 +361,7 @@ static void ThetaAdjustBypassElevation(UIButton *button, UIView *container, UIVi
 }
 static void (*orig_bypassReelPassword)(id self, SEL _cmd);
 static void hook_bypassReelPassword(id self, SEL _cmd) {
-    orig_bypassReelPassword(self, _cmd);
+    if (orig_bypassReelPassword) orig_bypassReelPassword(self, _cmd);
 
     if (ENABLED(@"Bypass Reel Password")) {
         @try {

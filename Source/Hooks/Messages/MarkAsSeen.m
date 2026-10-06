@@ -229,7 +229,7 @@ static BOOL hook_markMessagesAsSeen(id self, SEL _cmd) {
 
 	// Fast path: nothing to intercept — avoid KVC that can throw on IG 441 data sources.
 	if (!anyFeature && theta_autoMarkListIsEmpty()) {
-		return orig_markMessagesAsSeen(self, _cmd);
+		return orig_markMessagesAsSeen ? orig_markMessagesAsSeen(self, _cmd) : NO;
 	}
 
 	// If any thread participant is in the auto-mark list, use normal (auto) mark-as-seen behavior.
@@ -240,12 +240,12 @@ static BOOL hook_markMessagesAsSeen(id self, SEL _cmd) {
 		inAutoList = NO;
 	}
 	if (inAutoList) {
-		return orig_markMessagesAsSeen(self, _cmd);
+		return orig_markMessagesAsSeen ? orig_markMessagesAsSeen(self, _cmd) : NO;
 	}
 
 	// If all settings are off, return original implementation
 	if (!anyFeature) {
-		return orig_markMessagesAsSeen(self, _cmd);
+		return orig_markMessagesAsSeen ? orig_markMessagesAsSeen(self, _cmd) : NO;
 	}
 
 	// If all settings are on, return NO
@@ -1133,12 +1133,12 @@ static void hook_rightBarButtonItems(id self, SEL _cmd, id arg1) {
 		}
 	}
 
-	orig_rightBarButtonItems(self, _cmd, new_items);
+	if (orig_rightBarButtonItems) orig_rightBarButtonItems(self, _cmd, new_items);
 }
 
 static void (*orig_seenOnSend)(id self, SEL _cmd, id arg1);
 static void hook_seenOnSend(id self, SEL _cmd, id arg1) {
-	orig_seenOnSend(self, _cmd, arg1);
+	if (orig_seenOnSend) orig_seenOnSend(self, _cmd, arg1);
 
 	if (ENABLED(@"Seen On Send")) {
 		@try {
@@ -1191,7 +1191,7 @@ static void hook_seenOnSend2(id self, SEL _cmd) {
 
 static void (*orig_messageReactionSelection)(id self, SEL _cmd, id arg1, id arg2, BOOL arg3, BOOL arg4, NSInteger arg5);
 static void hook_messageReactionSelection(id self, SEL _cmd, id arg1, id arg2, BOOL arg3, BOOL arg4, NSInteger arg5) {
-    orig_messageReactionSelection(self, _cmd, arg1, arg2, arg3, arg4, arg5);
+    if (orig_messageReactionSelection) orig_messageReactionSelection(self, _cmd, arg1, arg2, arg3, arg4, arg5);
 
     @try {
         if (!ENABLED(@"Seen On React")) return;
@@ -1209,7 +1209,7 @@ static void hook_messageReactionSelection(id self, SEL _cmd, id arg1, id arg2, B
 
 static void (*orig_messageReactionSelection2)(id self, SEL _cmd, id arg1, id arg2, BOOL arg3);
 static void hook_messageReactionSelection2(id self, SEL _cmd, id arg1, id arg2, BOOL arg3) {
-	orig_messageReactionSelection2(self, _cmd, arg1, arg2, arg3);
+	if (orig_messageReactionSelection2) orig_messageReactionSelection2(self, _cmd, arg1, arg2, arg3);
 
 	if (!ENABLED(@"Seen On React")) return;
 	@try {
@@ -1229,7 +1229,7 @@ static void hook_messageReactionSelection2(id self, SEL _cmd, id arg1, id arg2, 
 
 static void (*orig_messageReactionSelection3)(id self, SEL _cmd, id arg1, id arg2, BOOL arg3, BOOL arg4, NSInteger arg5);
 static void hook_messageReactionSelection3(id self, SEL _cmd, id arg1, id arg2, BOOL arg3, BOOL arg4, NSInteger arg5) {
-    orig_messageReactionSelection3(self, _cmd, arg1, arg2, arg3, arg4, arg5);
+    if (orig_messageReactionSelection3) orig_messageReactionSelection3(self, _cmd, arg1, arg2, arg3, arg4, arg5);
 
     @try {
         if (!ENABLED(@"Seen On React")) return;
@@ -1247,7 +1247,7 @@ static void hook_messageReactionSelection3(id self, SEL _cmd, id arg1, id arg2, 
 
 static void (*orig_messageReactionSelection5)(id self, SEL _cmd, id arg1, id arg2, BOOL arg3, BOOL arg4, NSInteger arg5, id arg6);
 static void hook_messageReactionSelection5(id self, SEL _cmd, id arg1, id arg2, BOOL arg3, BOOL arg4, NSInteger arg5, id arg6) {
-    orig_messageReactionSelection5(self, _cmd, arg1, arg2, arg3, arg4, arg5, arg6);
+    if (orig_messageReactionSelection5) orig_messageReactionSelection5(self, _cmd, arg1, arg2, arg3, arg4, arg5, arg6);
 
     @try {
         if (!ENABLED(@"Seen On React")) return;
@@ -1265,7 +1265,7 @@ static void hook_messageReactionSelection5(id self, SEL _cmd, id arg1, id arg2, 
 
 static void (*orig_messageReactionSelection4)(id self, SEL _cmd, id arg1, id arg2, BOOL arg3);
 static void hook_messageReactionSelection4(id self, SEL _cmd, id arg1, id arg2, BOOL arg3) {
-	orig_messageReactionSelection4(self, _cmd, arg1, arg2, arg3);
+	if (orig_messageReactionSelection4) orig_messageReactionSelection4(self, _cmd, arg1, arg2, arg3);
 
 	if (!ENABLED(@"Seen On React")) return;
 	@try {

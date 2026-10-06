@@ -32,7 +32,7 @@ static void theta_disableLiveViewerCountPuller(id feedbackController) {
 
 static void (*orig_liveFeedbackStart)(id, SEL);
 static void hook_liveFeedbackStart(id self, SEL _cmd) {
-    orig_liveFeedbackStart(self, _cmd);
+    if (orig_liveFeedbackStart) orig_liveFeedbackStart(self, _cmd);
     if (ENABLED(@"Live Without Viewer List"))
         theta_disableLiveViewerCountPuller(self);
 }
@@ -93,7 +93,7 @@ static void theta_attachHeartLongPress(UIView *v) {
 
 static void (*orig_liveFooterLayout)(id, SEL);
 static void hook_liveFooterLayout(id self, SEL _cmd) {
-    orig_liveFooterLayout(self, _cmd);
+    if (orig_liveFooterLayout) orig_liveFooterLayout(self, _cmd);
     if (!ENABLED(@"Live Comments Sheet Toggle")) return;
     Ivar iv = class_getInstanceVariable([self class], "_likeButton");
     if (!iv) return;
@@ -103,7 +103,7 @@ static void hook_liveFooterLayout(id self, SEL _cmd) {
 
 static void (*orig_liveCommentsAppear)(id, SEL, BOOL);
 static void hook_liveCommentsAppear(id self, SEL _cmd, BOOL anim) {
-    orig_liveCommentsAppear(self, _cmd, anim);
+    if (orig_liveCommentsAppear) orig_liveCommentsAppear(self, _cmd, anim);
     theta_activeLiveCommentsVC = (UIViewController *)self;
     theta_liveCommentsHidden = NO;
     theta_applyLiveCommentsVisibility();
@@ -112,7 +112,7 @@ static void hook_liveCommentsAppear(id self, SEL _cmd, BOOL anim) {
 static void (*orig_liveCommentsDisappear)(id, SEL, BOOL);
 static void hook_liveCommentsDisappear(id self, SEL _cmd, BOOL anim) {
     if (theta_activeLiveCommentsVC == (UIViewController *)self) theta_activeLiveCommentsVC = nil;
-    orig_liveCommentsDisappear(self, _cmd, anim);
+    if (orig_liveCommentsDisappear) orig_liveCommentsDisappear(self, _cmd, anim);
 }
 
 void THRegisterLiveBrowseTweaksHooks(void) {

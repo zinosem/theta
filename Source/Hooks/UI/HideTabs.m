@@ -604,10 +604,37 @@ static void THApplyTabHidingNow(id tabBarController) {
     }
 }
 
+static void theta_applyLaunchTabSelection(id tabBarController) {
+    if (!tabBarController) return;
+    if (ENABLED(@"Messenger Mode")) return;
+
+    static BOOL sLaunchFired = NO;
+    if (sLaunchFired) return;
+    sLaunchFired = YES;
+
+    NSInteger launchIdx = [[NSUserDefaults standardUserDefaults] integerForKey:@"Launch Tab_SegmentIndex"];
+    NSString *selName = nil;
+    switch (launchIdx) {
+        case 1:  selName = @"_timelineButtonPressed";       break; // Home
+        case 2:  selName = @"_exploreButtonPressed";         break; // Explore
+        case 3:  selName = @"_discoverVideoButtonPressed";   break; // Reels
+        case 4:  selName = @"_directInboxButtonPressed";     break; // Messages
+        case 5:  selName = @"_profileButtonPressed";         break; // Profile
+        default: break;
+    }
+    if (selName) {
+        SEL sel = NSSelectorFromString(selName);
+        if ([tabBarController respondsToSelector:sel]) {
+            ((void(*)(id, SEL))objc_msgSend)(tabBarController, sel);
+        }
+    }
+}
+
 static void hook_hideTabs(id self, SEL _cmd, BOOL animated) {
     // Let Instagram finish setting up the tab bar first
-    orig_hideTabs(self, _cmd, animated);
+    if (orig_hideTabs) orig_hideTabs(self, _cmd, animated);
     THApplyTabHidingNow(self);
+    theta_applyLaunchTabSelection(self);
 }
 
 void THRegisterHideTabsHooks(void) {

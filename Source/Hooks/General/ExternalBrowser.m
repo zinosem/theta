@@ -78,7 +78,7 @@ static void hook_viewWillAppear_Browser(id self, SEL _cmd, BOOL animated) {
         }
     } @catch (__unused NSException *e) {}
 
-    orig_viewWillAppear_Browser(self, _cmd, animated);
+    if (orig_viewWillAppear_Browser) orig_viewWillAppear_Browser(self, _cmd, animated);
 }
 
 void THRegisterExternalBrowserHooks(void) {

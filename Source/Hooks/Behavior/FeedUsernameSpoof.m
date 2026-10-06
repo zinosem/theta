@@ -1,7 +1,7 @@
 static id (*orig_feedItemHeader)(id self, SEL _cmd);
 static id hook_feedItemHeader(id self, SEL _cmd) {
     if (!ENABLED(@"Easter Eggs")) {
-        return orig_feedItemHeader(self, _cmd);
+        return orig_feedItemHeader ? orig_feedItemHeader(self, _cmd) : nil;
     }
 
     // NSArray for different strings that we can return each time the method is called

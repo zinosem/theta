@@ -1,6 +1,6 @@
 static void (*orig_hideExploreGrid)(id self, SEL _cmd);
 static void hook_hideExploreGrid(id self, SEL _cmd) {
-    orig_hideExploreGrid(self, _cmd);
+    if (orig_hideExploreGrid) orig_hideExploreGrid(self, _cmd);
 
     if (ENABLED(@"Hide Explore Grid")) {
         UIResponder *responder = self;

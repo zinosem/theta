@@ -579,7 +579,7 @@ static void downloadAnimatedImage(NSURL *url) {
 
 static void (*orig_copyCommentText)(id self, SEL _cmd);
 static void hook_copyCommentText(id self, SEL _cmd) {
-    orig_copyCommentText(self, _cmd);
+    if (orig_copyCommentText) orig_copyCommentText(self, _cmd);
 
     if (!ENABLED(@"Comment Options")) {
         return;

@@ -169,42 +169,42 @@ static NSArray *hook_sundialObjs(id self, SEL _cmd, id arg1) {
 
 static NSArray *(*orig_ctxObjs)(id, SEL, id);
 static NSArray *hook_ctxObjs(id self, SEL _cmd, id arg1) {
-    NSArray *r = orig_ctxObjs(self, _cmd, arg1);
+    NSArray *r = orig_ctxObjs ? orig_ctxObjs(self, _cmd, arg1) : nil;
     if (!ENABLED(@"Disable Ads")) return r;
     return theta_removeAdsFromList(r);
 }
 
 static NSArray *(*orig_videoObjs)(id, SEL, id);
 static NSArray *hook_videoObjs(id self, SEL _cmd, id arg1) {
-    NSArray *r = orig_videoObjs(self, _cmd, arg1);
+    NSArray *r = orig_videoObjs ? orig_videoObjs(self, _cmd, arg1) : nil;
     if (!ENABLED(@"Disable Ads")) return r;
     return theta_removeAdsFromList(r);
 }
 
 static NSArray *(*orig_chainObjs)(id, SEL, id);
 static NSArray *hook_chainObjs(id self, SEL _cmd, id arg1) {
-    NSArray *r = orig_chainObjs(self, _cmd, arg1);
+    NSArray *r = orig_chainObjs ? orig_chainObjs(self, _cmd, arg1) : nil;
     if (!ENABLED(@"Disable Ads")) return r;
     return theta_removeAdsFromList(r);
 }
 
 static NSArray *(*orig_exploreObjs)(id, SEL, id);
 static NSArray *hook_exploreObjs(id self, SEL _cmd, id arg1) {
-    NSArray *r = orig_exploreObjs(self, _cmd, arg1);
+    NSArray *r = orig_exploreObjs ? orig_exploreObjs(self, _cmd, arg1) : nil;
     if (!ENABLED(@"Disable Ads")) return r;
     return theta_removeAdsFromList(r);
 }
 
 static NSArray *(*orig_exploreSwiftObjs)(id, SEL, id);
 static NSArray *hook_exploreSwiftObjs(id self, SEL _cmd, id arg1) {
-    NSArray *r = orig_exploreSwiftObjs(self, _cmd, arg1);
+    NSArray *r = orig_exploreSwiftObjs ? orig_exploreSwiftObjs(self, _cmd, arg1) : nil;
     if (!ENABLED(@"Disable Ads")) return r;
     return theta_removeAdsFromList(r);
 }
 
 static void (*orig_endFeedCell)(id self, SEL _cmd, id arg1);
 static void hook_endFeedCell(id self, SEL _cmd, id arg1) {
-    orig_endFeedCell(self, _cmd, arg1);
+    if (orig_endFeedCell) orig_endFeedCell(self, _cmd, arg1);
     if (!ENABLED(@"Hide End-of-Feed Footer")) return;
     @try {
         id titleLabel = [self valueForKey:@"_titleLabel"];

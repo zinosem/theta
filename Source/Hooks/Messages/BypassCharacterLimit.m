@@ -13,7 +13,7 @@ static const NSTimeInterval kThetaEmptyStableSeconds = 0.75; // require empty to
 static void (*orig_directComposer2)(id self, SEL _cmd);
 static void hook_directComposer2(id self, SEL _cmd) {
     @try {
-        orig_directComposer2(self, _cmd);
+        if (orig_directComposer2) orig_directComposer2(self, _cmd);
 
         if (ENABLED(@"Seen On Typing")) {
             IGUser *lastSender = nil;

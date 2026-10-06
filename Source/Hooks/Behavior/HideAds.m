@@ -48,7 +48,7 @@ static NSArray *removeAdsItemsInList(NSArray *list) {
 static NSArray *(*orig_hideAds)(id self, SEL _cmd, id arg1);
 static NSArray *hook_hideAds(id self, SEL _cmd, id arg1) {
     @try {
-        NSArray *result = orig_hideAds(self, _cmd, arg1);
+        NSArray *result = orig_hideAds ? orig_hideAds(self, _cmd, arg1) : nil;
         BOOL disableAds = ENABLED(@"Disable Ads");
         if (disableAds) {
             result = removeAdsItemsInList(result);
@@ -56,7 +56,7 @@ static NSArray *hook_hideAds(id self, SEL _cmd, id arg1) {
         return ThetaApplyHideFeedFiltering(result ?: @[], YES);
     } @catch (NSException *exception) {
         NSLog(@"Error in hideAds hook: %@", exception);
-        return orig_hideAds(self, _cmd, arg1);
+        return orig_hideAds ? orig_hideAds(self, _cmd, arg1) : @[];
     }
 }
 
@@ -65,20 +65,17 @@ static id hook_hideAds2(id self, SEL _cmd, id arg1) {
     BOOL disableAds = ENABLED(@"Disable Ads");
 
     if (!(disableAds)) {
-        return orig_hideAds2(self, _cmd, arg1);
+        return orig_hideAds2 ? orig_hideAds2(self, _cmd, arg1) : nil;
     }
 
     @try {
         if (disableAds) {
             return nil;
         }
-        if (!disableAds) {
-            return orig_hideAds2(self, _cmd, arg1);
-        }
-        return nil;
+        return orig_hideAds2 ? orig_hideAds2(self, _cmd, arg1) : nil;
     } @catch (NSException *exception) {
         NSLog(@"Error in hideAds2 hook: %@", exception);
-        return orig_hideAds2(self, _cmd, arg1);
+        return orig_hideAds2 ? orig_hideAds2(self, _cmd, arg1) : nil;
     }
 }
 
@@ -88,10 +85,10 @@ static id hook_hideAds3(id self, SEL _cmd) {
         BOOL disableAds = ENABLED(@"Disable Ads");
 
         if (!(disableAds)) {
-            return orig_hideAds3(self, _cmd);
+            return orig_hideAds3 ? orig_hideAds3(self, _cmd) : nil;
         }
 
-        NSMutableArray *originalList = [orig_hideAds3(self, _cmd) mutableCopy];
+        NSMutableArray *originalList = [(orig_hideAds3 ? orig_hideAds3(self, _cmd) : nil) mutableCopy];
         if (!originalList) {
             return @[];
         }
@@ -107,25 +104,12 @@ static id hook_hideAds3(id self, SEL _cmd) {
                     }
                 }
             }];
-        } else if (!disableAds) {
-            // Do nothing
-        } else {
-            [originalList enumerateObjectsWithOptions:NSEnumerationReverse usingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
-                if (!obj) return;
-                if ([obj isKindOfClass:NSClassFromString(@"IGAdItem")]) {
-                    @try {
-                        [originalList removeObjectAtIndex:idx];
-                    } @catch (NSException *exception) {
-                        NSLog(@"Error removing ad item at index %lu: %@", (unsigned long)idx, exception);
-                    }
-                }
-            }];
         }
 
         return originalList;
     } @catch (NSException *exception) {
         NSLog(@"Error in hideAds3 hook: %@", exception);
-        return orig_hideAds3(self, _cmd);
+        return orig_hideAds3 ? orig_hideAds3(self, _cmd) : nil;
     }
 }
 
@@ -134,27 +118,24 @@ static id hook_hideAds4(id self, SEL _cmd, id arg1) {
     BOOL disableAds = ENABLED(@"Disable Ads");
 
     if (!(disableAds)) {
-        return orig_hideAds4(self, _cmd, arg1);
+        return orig_hideAds4 ? orig_hideAds4(self, _cmd, arg1) : nil;
     }
 
     @try {
         if (disableAds) {
             return nil;
         }
-        if (!disableAds) {
-            return orig_hideAds4(self, _cmd, arg1);
-        }
-        return nil;
+        return orig_hideAds4 ? orig_hideAds4(self, _cmd, arg1) : nil;
     } @catch (NSException *exception) {
         NSLog(@"Error in hideAds4 hook: %@", exception);
-        return orig_hideAds4(self, _cmd, arg1);
+        return orig_hideAds4 ? orig_hideAds4(self, _cmd, arg1) : nil;
     }
 }
 
 static void (*orig_hideSuggestedReels)(id self, SEL _cmd);
 static void hook_hideSuggestedReels(id self, SEL _cmd) {
     if (!ENABLED(@"Disable Suggested Posts")) {
-        orig_hideSuggestedReels(self, _cmd);
+        if (orig_hideSuggestedReels) orig_hideSuggestedReels(self, _cmd);
         return;
     }
 
@@ -166,14 +147,14 @@ static void hook_hideSuggestedReels(id self, SEL _cmd) {
         }
     } @catch (NSException *exception) {
         NSLog(@"Error in hideSuggestedReels hook: %@", exception);
-        orig_hideSuggestedReels(self, _cmd);
+        if (orig_hideSuggestedReels) orig_hideSuggestedReels(self, _cmd);
     }
 }
 
 static void (*orig_hideSuggestedReels2)(id self, SEL _cmd);
 static void hook_hideSuggestedReels2(id self, SEL _cmd) {
     if (!ENABLED(@"Disable Suggested Posts")) {
-        orig_hideSuggestedReels2(self, _cmd);
+        if (orig_hideSuggestedReels2) orig_hideSuggestedReels2(self, _cmd);
         return;
     }
 
@@ -185,14 +166,14 @@ static void hook_hideSuggestedReels2(id self, SEL _cmd) {
         }
     } @catch (NSException *exception) {
         NSLog(@"Error in hideSuggestedReels2 hook: %@", exception);
-        orig_hideSuggestedReels2(self, _cmd);
+        if (orig_hideSuggestedReels2) orig_hideSuggestedReels2(self, _cmd);
     }
 }
 
 static void (*orig_hideSuggestedReels3)(id self, SEL _cmd);
 static void hook_hideSuggestedReels3(id self, SEL _cmd) {
     if (!ENABLED(@"Disable Suggested Posts")) {
-        orig_hideSuggestedReels3(self, _cmd);
+        if (orig_hideSuggestedReels3) orig_hideSuggestedReels3(self, _cmd);
         return;
     }
 
@@ -205,14 +186,14 @@ static void hook_hideSuggestedReels3(id self, SEL _cmd) {
         }
     } @catch (NSException *exception) {
         NSLog(@"Error in hideSuggestedReels3 hook: %@", exception);
-        orig_hideSuggestedReels3(self, _cmd);
+        if (orig_hideSuggestedReels3) orig_hideSuggestedReels3(self, _cmd);
     }
 }
 
 static void (*orig_hideAds5)(id self, SEL _cmd, id adItem, NSInteger overlayStyle, BOOL ctaEnabled, id delegate, NSUInteger surfaceType, id analyticsModule, NSUInteger labelAlignment);
 static void hook_hideAds5(id self, SEL _cmd, id adItem, NSInteger overlayStyle, BOOL ctaEnabled, id delegate, NSUInteger surfaceType, id analyticsModule, NSUInteger labelAlignment) {
     if (!ENABLED(@"Disable Ads")) {
-        orig_hideAds5(self, _cmd, adItem, overlayStyle, ctaEnabled, delegate, surfaceType, analyticsModule, labelAlignment);
+        if (orig_hideAds5) orig_hideAds5(self, _cmd, adItem, overlayStyle, ctaEnabled, delegate, surfaceType, analyticsModule, labelAlignment);
         return;
     }
 

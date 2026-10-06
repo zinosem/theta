@@ -31,11 +31,8 @@ static ThetaMessengerSettingsLongPressTarget *theta_messengerSettingsLPTarget(vo
 }
 
 static void theta_detachMessengerSettingsLongPressFromDirectInbox(id tabBarController) {
-    UIView *dm = nil;
-    @try {
-        dm = [tabBarController valueForKey:@"_directInboxButton"];
-    } @catch (__unused NSException *e) {
-    }
+    if (!tabBarController) return;
+    UIView *dm = ThetaValueForKey(tabBarController, @"_directInboxButton");
     if (![dm isKindOfClass:[UIView class]]) {
         return;
     }
@@ -47,15 +44,12 @@ static void theta_detachMessengerSettingsLongPressFromDirectInbox(id tabBarContr
 }
 
 static void theta_attachMessengerSettingsLongPressToDirectInboxIfNeeded(id tabBarController) {
+    if (!tabBarController) return;
     if (!ENABLED(@"Messenger Mode")) {
         theta_detachMessengerSettingsLongPressFromDirectInbox(tabBarController);
         return;
     }
-    UIView *dm = nil;
-    @try {
-        dm = [tabBarController valueForKey:@"_directInboxButton"];
-    } @catch (__unused NSException *e) {
-    }
+    UIView *dm = ThetaValueForKey(tabBarController, @"_directInboxButton");
     if (![dm isKindOfClass:[UIView class]]) {
         return;
     }
@@ -70,7 +64,7 @@ static void theta_attachMessengerSettingsLongPressToDirectInboxIfNeeded(id tabBa
 }
 
 static void hook_layoutTabBar(id self, SEL _cmd) {
-    orig_layoutTabBar(self, _cmd);
+    if (orig_layoutTabBar) orig_layoutTabBar(self, _cmd);
     theta_attachMessengerSettingsLongPressToDirectInboxIfNeeded(self);
 }
 

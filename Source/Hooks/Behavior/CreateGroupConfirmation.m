@@ -13,7 +13,7 @@ static void theta_runCreateGroupConfirmation(void (^invokeOrig)(void)) {
 
 static void (*orig_createGroupConfirmation)(id self, SEL _cmd, id arg1);
 static void hook_createGroupConfirmation(id self, SEL _cmd, id arg1) {
-    theta_runCreateGroupConfirmation(^{ orig_createGroupConfirmation(self, _cmd, arg1); });
+    theta_runCreateGroupConfirmation(^{ if (orig_createGroupConfirmation) orig_createGroupConfirmation(self, _cmd, arg1); });
 }
 
 void THRegisterCreateGroupConfirmationHooks(void) {

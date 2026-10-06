@@ -41,8 +41,8 @@ static id hook_playbackConfig(id self, SEL _cmd,
         shortScrubberEnabled = YES;
     }
 
-    return orig_playbackConfig(self, _cmd, set, tapPauseEnabled, controls, previewThumbEnabled,
-                                minSec, seekSec, tapSec, duration, shortScrubberEnabled);
+    return orig_playbackConfig ? orig_playbackConfig(self, _cmd, set, tapPauseEnabled, controls, previewThumbEnabled,
+                                minSec, seekSec, tapSec, duration, shortScrubberEnabled) : nil;
 }
 
 void THRegisterTapControlsHooks(void) {

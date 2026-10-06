@@ -3,7 +3,7 @@
 static void (*orig_followConfirmation)(id self, SEL _cmd);
 static void hook_followConfirmation(id self, SEL _cmd) {
     if (!ENABLED(@"Follow Confirmation")) {
-        orig_followConfirmation(self, _cmd);
+        if (orig_followConfirmation) orig_followConfirmation(self, _cmd);
         return;
     }
     
@@ -14,7 +14,7 @@ static void hook_followConfirmation(id self, SEL _cmd) {
             @{
                 @"title": @"Yes, follow them!",
                 @"handler": ^(id sender) {
-                    orig_followConfirmation(self, _cmd);
+                    if (orig_followConfirmation) orig_followConfirmation(self, _cmd);
                 }
             },
             @{
@@ -25,7 +25,7 @@ static void hook_followConfirmation(id self, SEL _cmd) {
             }
         ]];
     } else {
-        orig_followConfirmation(self, _cmd);
+        if (orig_followConfirmation) orig_followConfirmation(self, _cmd);
     }
 }
 

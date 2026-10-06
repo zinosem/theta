@@ -123,7 +123,14 @@ static void ThetaSetCaptureHiding(UIView *view) {
  * pointer and crashes on first call (EXC_BAD_ACCESS / PC=0). Always capture the
  * IMP via method_getImplementation / class_addMethod+method_setImplementation.
  */
+static id ThetaSafeDummyIMP(id self, SEL _cmd, ...) {
+    return nil;
+}
+
 static BOOL ThetaInstallMessageHook(Class cls, SEL sel, void *replacement, void *original, BOOL reportMissing) {
+    if (original) {
+        *(IMP *)original = (IMP)ThetaSafeDummyIMP;
+    }
     if (!cls || !replacement) {
         if (reportMissing && !cls) {
             RecordFailedHookLine([NSString stringWithFormat:@"Class is nil for %@", NSStringFromSelector(sel)]);
@@ -167,7 +174,7 @@ static BOOL ThetaInstallMessageHook(Class cls, SEL sel, void *replacement, void 
     }
 
     if (original) {
-        *(IMP *)original = previous;
+        *(IMP *)original = previous ?: (IMP)ThetaSafeDummyIMP;
     }
     return previous != NULL;
 }

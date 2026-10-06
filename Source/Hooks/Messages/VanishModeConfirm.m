@@ -28,7 +28,7 @@ static void theta_runVanishModeConfirmation(void (^invokeOrig)(void)) {
 
 static void (*orig_handleBottomSwipeableScrollUpdate)(id self, SEL _cmd);
 static void hook_handleBottomSwipeableScrollUpdate(id self, SEL _cmd) {
-    theta_runVanishModeConfirmation(^{ orig_handleBottomSwipeableScrollUpdate(self, _cmd); });
+    theta_runVanishModeConfirmation(^{ if (orig_handleBottomSwipeableScrollUpdate) orig_handleBottomSwipeableScrollUpdate(self, _cmd); });
 }
 
 void THRegisterVanishModeConfirmationHooks(void) {

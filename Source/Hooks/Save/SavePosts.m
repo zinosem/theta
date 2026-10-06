@@ -1546,7 +1546,7 @@ static void theta_sundialHideRepostControls(UIView *ufi) {
 
 static void (*orig_sundialUFILayoutSubviews)(id self, SEL _cmd);
 static void hook_sundialUFILayoutSubviews(id self, SEL _cmd) {
-    orig_sundialUFILayoutSubviews(self, _cmd);
+    if (orig_sundialUFILayoutSubviews) orig_sundialUFILayoutSubviews(self, _cmd);
     if (!ENABLED(@"Hide Repost Button")) {
         return;
     }
@@ -1730,7 +1730,7 @@ static void theta_configureReelDownloadMenu(UIButton *downloadButton, id ufi) {
 
 static void (*orig_sundialViewerVerticalUFI)(IGSundialViewerVerticalUFI *self, SEL _cmd, IGSundialViewerUFIViewModel *viewModel);
 static void hook_sundialViewerVerticalUFI(IGSundialViewerVerticalUFI *self, SEL _cmd, IGSundialViewerUFIViewModel *viewModel) {
-    orig_sundialViewerVerticalUFI(self, _cmd, viewModel);
+    if (orig_sundialViewerVerticalUFI) orig_sundialViewerVerticalUFI(self, _cmd, viewModel);
 
     if (ENABLED(@"Hide Repost Button")) {
         __weak typeof(self) weakSelf = self;

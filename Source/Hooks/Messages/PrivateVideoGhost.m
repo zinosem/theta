@@ -5,7 +5,7 @@ static void downloadHDVideo(IGVideo *inputVideo);
 
 static void (*orig_visualmsgghostbuttons)(IGDirectVisualMessageViewerController *self, SEL _cmd);
 static void hook_visualmsgghostbuttons(IGDirectVisualMessageViewerController *self, SEL _cmd) {
-    orig_visualmsgghostbuttons(self, _cmd);
+    if (orig_visualmsgghostbuttons) orig_visualmsgghostbuttons(self, _cmd);
 
     UIView *containerView = [self valueForKey:@"view"];
     if (!containerView || ![containerView isKindOfClass:[UIView class]]) {
@@ -207,11 +207,12 @@ static void hook_visualmsgghostbuttons(IGDirectVisualMessageViewerController *se
 static void (*orig_visualmsgghostvideo)(id self, SEL _cmd, id arg1);
 static void hook_visualmsgghostvideo(id self, SEL _cmd, id arg1) {
     if (!ENABLED(@"Private Media Ghost")) {
-        return orig_visualmsgghostvideo(self, _cmd, arg1);
+        if (orig_visualmsgghostvideo) orig_visualmsgghostvideo(self, _cmd, arg1);
+        return;
     }
 
     if (videoPlayed) {
-        orig_visualmsgghostvideo(self, _cmd, arg1);
+        if (orig_visualmsgghostvideo) orig_visualmsgghostvideo(self, _cmd, arg1);
         videoPlayed = NO;
     }
 }
@@ -219,11 +220,12 @@ static void hook_visualmsgghostvideo(id self, SEL _cmd, id arg1) {
 static void (*orig_visualmsgghostphoto)(id self, SEL _cmd, id arg1, id arg2, id arg3, id arg4);
 static void hook_visualmsgghostphoto(id self, SEL _cmd, id arg1, id arg2, id arg3, id arg4) {
     if (!ENABLED(@"Private Media Ghost")) {
-        return orig_visualmsgghostphoto(self, _cmd, arg1, arg2, arg3, arg4);
+        if (orig_visualmsgghostphoto) orig_visualmsgghostphoto(self, _cmd, arg1, arg2, arg3, arg4);
+        return;
     }
 
     if (videoPlayed) {
-        orig_visualmsgghostphoto(self, _cmd, arg1, arg2, arg3, arg4);
+        if (orig_visualmsgghostphoto) orig_visualmsgghostphoto(self, _cmd, arg1, arg2, arg3, arg4);
         videoPlayed = NO;
     }
 }

@@ -4,23 +4,26 @@
 static void (*orig_screenshotSuppression)(id self, SEL _cmd);
 static void hook_screenshotSuppression(id self, SEL _cmd) {
     if (!ENABLED(@"Screenshot Suppression")) {
-        return orig_screenshotSuppression(self, _cmd);
+        if (orig_screenshotSuppression) orig_screenshotSuppression(self, _cmd);
+        return;
     }
 }
 
 static void (*orig_screenshotSuppression2)(id self, SEL _cmd, BOOL isProtected);
 static void hook_screenshotSuppression2(id self, SEL _cmd, BOOL isProtected) {
     if (!ENABLED(@"Screenshot Suppression")) {
-        return orig_screenshotSuppression2(self, _cmd, isProtected);
+        if (orig_screenshotSuppression2) orig_screenshotSuppression2(self, _cmd, isProtected);
+        return;
     }
     
-    return orig_screenshotSuppression2(self, _cmd, NO);
+    if (orig_screenshotSuppression2) orig_screenshotSuppression2(self, _cmd, NO);
 }
 
 static void (*orig_screenRecord)(id self, SEL _cmd, id state);
 static void hook_screenRecord(id self, SEL _cmd, id state) {
     if (!ENABLED(@"Screenshot Suppression")) {
-        return orig_screenRecord(self, _cmd, state);
+        if (orig_screenRecord) orig_screenRecord(self, _cmd, state);
+        return;
     }
 }
 
@@ -47,7 +50,8 @@ static void hook_NC_postNotificationName_object_userInfo(id self, SEL _cmd, NSNo
             return;
         }
     }
-    orig_NC_postNotificationName_object_userInfo(self, _cmd, aName, anObject, aUserInfo);
+    if (orig_NC_postNotificationName_object_userInfo)
+        orig_NC_postNotificationName_object_userInfo(self, _cmd, aName, anObject, aUserInfo);
 }
 
 static void (*orig_NC_postNotification)(id self, SEL _cmd, NSNotification *notification);
@@ -58,7 +62,8 @@ static void hook_NC_postNotification(id self, SEL _cmd, NSNotification *notifica
             return;
         }
     }
-    orig_NC_postNotification(self, _cmd, notification);
+    if (orig_NC_postNotification)
+        orig_NC_postNotification(self, _cmd, notification);
 }
 
 // Direct Message / Disappearing media specific handlers

@@ -137,7 +137,7 @@ static BOOL thetaLooksLikePromoController(NSString *className) {
 
 static void (*orig_hideIGDSPromoDialog)(id self, SEL _cmd);
 static void hook_hideIGDSPromoDialog(id self, SEL _cmd) {
-	orig_hideIGDSPromoDialog(self, _cmd);
+	if (orig_hideIGDSPromoDialog) orig_hideIGDSPromoDialog(self, _cmd);
 
 	@try {
 		UIView *view = (UIView *)self;

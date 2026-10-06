@@ -39,28 +39,32 @@ static NSString *THFormattedDate(NSDate *date) {
 static NSString *(*orig_mixedFormat)(NSDate *, SEL);
 static NSString *hook_mixedFormat(NSDate *self, SEL _cmd) {
     NSString *r = THFormattedDate(self);
-    return r ?: orig_mixedFormat(self, _cmd);
+    if (r) return r;
+    return orig_mixedFormat ? orig_mixedFormat(self, _cmd) : nil;
 }
 
 // Hook: formattedDateRelativeToNow (notes, comments, stories)
 static NSString *(*orig_relativeNow)(NSDate *, SEL);
 static NSString *hook_relativeNow(NSDate *self, SEL _cmd) {
     NSString *r = THFormattedDate(self);
-    return r ?: orig_relativeNow(self, _cmd);
+    if (r) return r;
+    return orig_relativeNow ? orig_relativeNow(self, _cmd) : nil;
 }
 
 // Hook: shortenedFormattedDateRelativeToNow
 static NSString *(*orig_shortRelNow)(NSDate *, SEL);
 static NSString *hook_shortRelNow(NSDate *self, SEL _cmd) {
     NSString *r = THFormattedDate(self);
-    return r ?: orig_shortRelNow(self, _cmd);
+    if (r) return r;
+    return orig_shortRelNow ? orig_shortRelNow(self, _cmd) : nil;
 }
 
 // Hook: shortenedFormattedDateRelativeToNowHideSeconds: (DMs)
 static NSString *(*orig_shortRelHideSeconds)(NSDate *, SEL, NSInteger);
 static NSString *hook_shortRelHideSeconds(NSDate *self, SEL _cmd, NSInteger hideSeconds) {
     NSString *r = THFormattedDate(self);
-    return r ?: orig_shortRelHideSeconds(self, _cmd, hideSeconds);
+    if (r) return r;
+    return orig_shortRelHideSeconds ? orig_shortRelHideSeconds(self, _cmd, hideSeconds) : nil;
 }
 
 void THRegisterDateFormatHooks(void) {

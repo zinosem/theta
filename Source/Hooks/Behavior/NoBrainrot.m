@@ -1,6 +1,6 @@
 static void (*orig_hideBrainBot)(IGUnifiedVideoCollectionView *self, SEL _cmd);
 static void hook_hideBrainBot(IGUnifiedVideoCollectionView *self, SEL _cmd) {
-    orig_hideBrainBot(self, _cmd);
+    if (orig_hideBrainBot) orig_hideBrainBot(self, _cmd);
     
     if (ENABLED(@"Disable Scrolling Reels")) {
         self.scrollEnabled = NO;

@@ -62,7 +62,7 @@ static void hook_hideCreateButton3(id self, SEL _cmd) {
 
 static id (*orig_hideCreateButton4)(id self, SEL _cmd);
 static id hook_hideCreateButton4(id self, SEL _cmd) {
-    id titleView = orig_hideCreateButton4(self, _cmd);
+    id titleView = orig_hideCreateButton4 ? orig_hideCreateButton4(self, _cmd) : nil;
     if (ENABLED(@"Hide Create Tab/Button")) {
         // get subviews in self (there will only be 1 UIView subview)
         for (UIView *subview in [self subviews]) {

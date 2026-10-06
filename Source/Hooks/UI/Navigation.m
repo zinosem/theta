@@ -55,37 +55,6 @@ static BOOL hook_isTabSwipingEnabled(id self, SEL _cmd) {
     return orig_isTabSwipingEnabled ? orig_isTabSwipingEnabled(self, _cmd) : YES;
 }
 
-// MARK: - Launch Tab
-
-static void (*orig_viewWillAppear_tabBar)(id, SEL, BOOL) = NULL;
-static void hook_viewWillAppear_tabBar(id self, SEL _cmd, BOOL animated) {
-    orig_viewWillAppear_tabBar(self, _cmd, animated);
-
-    // Only fire once at launch, and only if Messenger Mode is not active
-    if (ENABLED(@"Messenger Mode")) return;
-
-    static BOOL sLaunchFired = NO;
-    if (sLaunchFired) return;
-    sLaunchFired = YES;
-
-    NSInteger launchIdx = [[NSUserDefaults standardUserDefaults] integerForKey:@"Launch Tab_SegmentIndex"];
-    NSString *selName = nil;
-    switch (launchIdx) {
-        case 1:  selName = @"_timelineButtonPressed";       break; // Home
-        case 2:  selName = @"_exploreButtonPressed";         break; // Explore
-        case 3:  selName = @"_discoverVideoButtonPressed";   break; // Reels
-        case 4:  selName = @"_directInboxButtonPressed";     break; // Messages
-        case 5:  selName = @"_profileButtonPressed";         break; // Profile
-        default: break;
-    }
-    if (selName) {
-        SEL sel = NSSelectorFromString(selName);
-        if ([self respondsToSelector:sel]) {
-            ((void(*)(id, SEL))objc_msgSend)(self, sel);
-        }
-    }
-}
-
 void THRegisterNavigationHooks(void) {
     // _TtC18IGNavConfiguration18IGNavConfiguration is the Swift class name
     Class navConfig = objc_getClass("_TtC18IGNavConfiguration18IGNavConfiguration");
@@ -98,8 +67,4 @@ void THRegisterNavigationHooks(void) {
         if ([navConfig instancesRespondToSelector:swipe])
             NullHookMessageEx(navConfig, swipe, (void *)hook_isTabSwipingEnabled, &orig_isTabSwipingEnabled);
     }
-
-    // Launch tab — hooks IGTabBarController viewWillAppear
-    Class tbCls = objc_getClass("IGTabBarController");
-    NullHookMessageEx(tbCls, @selector(viewWillAppear:), (void *)hook_viewWillAppear_tabBar, &orig_viewWillAppear_tabBar);
 }

@@ -26,7 +26,7 @@ static char kThetaProfilePicLongPressDelegateKey;
 
 static void (*orig_saveProfilePictures)(id self, SEL _cmd);
 static void hook_saveProfilePictures(id self, SEL _cmd) {
-    orig_saveProfilePictures(self, _cmd);
+    if (orig_saveProfilePictures) orig_saveProfilePictures(self, _cmd);
 
     if (ENABLED(@"Save Profile Pictures") || ENABLED(@"Fullscreen Profile Pictures")) {
 		NSURL *imageURL = nil;

@@ -1,7 +1,7 @@
 static BOOL isAuthenticationShowed = FALSE;
 static void (*orig_applicationDidBecomeActive)(id self, SEL _cmd, id arg1);
 static void hook_applicationDidBecomeActive(id self, SEL _cmd, id arg1) {
-    orig_applicationDidBecomeActive(self, _cmd, arg1);
+    if (orig_applicationDidBecomeActive) orig_applicationDidBecomeActive(self, _cmd, arg1);
 
     if (ENABLED(@"Lock Instagram") && !isAuthenticationShowed) {
         UIViewController *topController = [ThetaHelper topViewController];
@@ -19,7 +19,7 @@ static void hook_applicationDidBecomeActive(id self, SEL _cmd, id arg1) {
 
 static void (*orig_applicationWillEnterForeground)(id self, SEL _cmd, id arg1);
 static void hook_applicationWillEnterForeground(id self, SEL _cmd, id arg1) {
-    orig_applicationWillEnterForeground(self, _cmd, arg1);
+    if (orig_applicationWillEnterForeground) orig_applicationWillEnterForeground(self, _cmd, arg1);
     isAuthenticationShowed = FALSE;
 }
 

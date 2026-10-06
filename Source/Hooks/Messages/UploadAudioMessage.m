@@ -175,7 +175,7 @@ static void (*orig_voiceMessageButton)(id self, SEL _cmd, NSInteger entryPoint);
 
 static void hook_voiceMessageButton(id self, SEL _cmd, NSInteger entryPoint) {
 	if (!ENABLED(@"Upload Audio Messages")) {
-		orig_voiceMessageButton(self, _cmd, entryPoint);
+		if (orig_voiceMessageButton) orig_voiceMessageButton(self, _cmd, entryPoint);
 		return;
 	}
 	
@@ -227,7 +227,7 @@ static void hook_voiceMessageButton(id self, SEL _cmd, NSInteger entryPoint) {
             @"title": @"Record a new one",
             @"handler": ^(id sender) {
                 // Start recording
-                orig_voiceMessageButton(self, _cmd, entryPoint);
+                if (orig_voiceMessageButton) orig_voiceMessageButton(self, _cmd, entryPoint);
             }
         },
         @{

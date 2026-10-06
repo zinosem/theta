@@ -1,7 +1,7 @@
 static void (*orig_messageCache)(id self, SEL _cmd, id update);
 static void hook_messageCache(id self, SEL _cmd, id update) {
 	if (!ENABLED(@"Keep Deleted Messages")) {
-		orig_messageCache(self, _cmd, update);
+		if (orig_messageCache) orig_messageCache(self, _cmd, update);
 		return;
 	}
 
@@ -37,7 +37,7 @@ static void hook_messageCache(id self, SEL _cmd, id update) {
 				if (messageUpdate) {
 					NSArray *removeKeys = [messageUpdate valueForKey:@"_removeMessages_messageKeys"];
 					if (removeKeys.count == 0) {
-						orig_messageCache(self, _cmd, retained);
+						if (orig_messageCache) orig_messageCache(self, _cmd, retained);
 						return;
 					}
 
@@ -60,7 +60,7 @@ static void hook_messageCache(id self, SEL _cmd, id update) {
 		}
 	}
 
-	orig_messageCache(self, _cmd, update);
+	if (orig_messageCache) orig_messageCache(self, _cmd, update);
 }
 
 /* static void (*orig_directMessageCell)(id self, SEL _cmd, id viewModel, id specFactory, id launcher);
@@ -185,7 +185,7 @@ static UIView *thetaFindInnerTextMessageBubble(UIView *root) {
 
 static void (*orig_directMessageCell_configure)(id self, SEL _cmd, id viewModel, id specFactory, id launcher);
 static void hook_directMessageCell_configure(id self, SEL _cmd, id viewModel, id specFactory, id launcher) {
-	orig_directMessageCell_configure(self, _cmd, viewModel, specFactory, launcher);
+	if (orig_directMessageCell_configure) orig_directMessageCell_configure(self, _cmd, viewModel, specFactory, launcher);
 	if (!ENABLED(@"Keep Deleted Messages")) return;
 	if (![viewModel conformsToProtocol:@protocol(IGDirectMessageViewModelProtocol)]) return;
 
@@ -279,7 +279,7 @@ static void hook_directMessageCell_configure(id self, SEL _cmd, id viewModel, id
 static void (*orig_messageCache2)(id self, SEL _cmd, id updates, id completion);
 static void hook_messageCache2(id self, SEL _cmd, id updates, id completion) {
 	if (!ENABLED(@"Keep Deleted Messages")) {
-		orig_messageCache2(self, _cmd, updates, completion);
+		if (orig_messageCache2) orig_messageCache2(self, _cmd, updates, completion);
 		return;
 	}
 
@@ -318,7 +318,7 @@ static void hook_messageCache2(id self, SEL _cmd, id updates, id completion) {
 					NSArray *removeKeys = [messageUpdate valueForKey:@"_removeMessages_messageKeys"];
 					if (removeKeys.count == 0) {
 						// No messages to remove, proceed normally
-						orig_messageCache2(self, _cmd, updates, completion);
+						if (orig_messageCache2) orig_messageCache2(self, _cmd, updates, completion);
 						return;
 					}
 
@@ -342,14 +342,14 @@ static void hook_messageCache2(id self, SEL _cmd, id updates, id completion) {
 
 					// If we found any invalid cases, proceed normally
 					if (!allValid) {
-						orig_messageCache2(self, _cmd, updates, completion);
+						if (orig_messageCache2) orig_messageCache2(self, _cmd, updates, completion);
 						return;
 					}
 				}
 			} @catch (NSException *e) {
 				NSLog(@"Error accessing IGDirectThreadUpdate: %@", e);
 				// On error, proceed normally
-				orig_messageCache2(self, _cmd, updates, completion);
+				if (orig_messageCache2) orig_messageCache2(self, _cmd, updates, completion);
 				return;
 			}
 		}
@@ -365,13 +365,13 @@ static void hook_messageCache2(id self, SEL _cmd, id updates, id completion) {
 	}
 
 	// Otherwise, proceed with the original update
-	orig_messageCache2(self, _cmd, updates, completion);
+	if (orig_messageCache2) orig_messageCache2(self, _cmd, updates, completion);
 }
 
 static void (*orig_messageCache3)(id self, SEL _cmd, id updates, id completion, id userAccess);
 static void hook_messageCache3(id self, SEL _cmd, id updates, id completion, id userAccess) {
 	if (!ENABLED(@"Keep Deleted Messages")) {
-		orig_messageCache3(self, _cmd, updates, completion, userAccess);
+		if (orig_messageCache3) orig_messageCache3(self, _cmd, updates, completion, userAccess);
 		return;
 	}
 
@@ -410,7 +410,7 @@ static void hook_messageCache3(id self, SEL _cmd, id updates, id completion, id 
 					NSArray *removeKeys = [messageUpdate valueForKey:@"_removeMessages_messageKeys"];
 					if (removeKeys.count == 0) {
 						// No messages to remove, proceed normally
-						orig_messageCache3(self, _cmd, updates, completion, userAccess);
+						if (orig_messageCache3) orig_messageCache3(self, _cmd, updates, completion, userAccess);
 						return;
 					}
 
@@ -438,14 +438,14 @@ static void hook_messageCache3(id self, SEL _cmd, id updates, id completion, id 
 
 					// If we found any invalid cases, proceed normally
 					if (!allValid) {
-						orig_messageCache3(self, _cmd, updates, completion, userAccess);
+						if (orig_messageCache3) orig_messageCache3(self, _cmd, updates, completion, userAccess);
 						return;
 					}
 				}
 			} @catch (NSException *e) {
 				NSLog(@"Error accessing IGDirectThreadUpdate: %@", e);
 				// On error, proceed normally
-				orig_messageCache3(self, _cmd, updates, completion, userAccess);
+				if (orig_messageCache3) orig_messageCache3(self, _cmd, updates, completion, userAccess);
 				return;
 			}
 		}
@@ -461,7 +461,7 @@ static void hook_messageCache3(id self, SEL _cmd, id updates, id completion, id 
 	}
 
 	// Otherwise, proceed with the original update
-	orig_messageCache3(self, _cmd, updates, completion, userAccess);
+	if (orig_messageCache3) orig_messageCache3(self, _cmd, updates, completion, userAccess);
 }
 
 void THRegisterKeepDeletedMessagesHooks(void) {

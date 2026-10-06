@@ -81,13 +81,13 @@ static void THUpdateSubtitleLabel(UIView *titleView) {
 
 static void (*orig_setTitleViewModel)(id, SEL, id);
 static void hook_setTitleViewModel(id self, SEL _cmd, id vm) {
-    orig_setTitleViewModel(self, _cmd, vm);
+    if (orig_setTitleViewModel) orig_setTitleViewModel(self, _cmd, vm);
     THUpdateSubtitleLabel(self);
 }
 
 static void (*orig_animCoordDidUpdate)(id, SEL, id);
 static void hook_animCoordDidUpdate(id self, SEL _cmd, id coordinator) {
-    orig_animCoordDidUpdate(self, _cmd, coordinator);
+    if (orig_animCoordDidUpdate) orig_animCoordDidUpdate(self, _cmd, coordinator);
     THUpdateSubtitleLabel(self);
 }
 
