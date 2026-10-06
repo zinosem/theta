@@ -43,6 +43,105 @@ static BOOL theta_moveReplace(NSString *src, NSString *dst) {
     return NO;
 }
 
+static id theta_bestCandidateFromImageVersions(NSArray *candidates) {
+    if (!candidates || ![candidates isKindOfClass:[NSArray class]] || candidates.count == 0) return nil;
+    id bestCand = nil;
+    double maxPixels = -1.0;
+    for (id cand in candidates) {
+        double width = 0.0;
+        double height = 0.0;
+        if ([cand isKindOfClass:[NSDictionary class]]) {
+            NSDictionary *d = (NSDictionary *)cand;
+            if (d[@"width"]) width = [d[@"width"] doubleValue];
+            if (d[@"height"]) height = [d[@"height"] doubleValue];
+        } else {
+            @try {
+                if ([cand respondsToSelector:@selector(width)]) {
+                    width = [[cand valueForKey:@"width"] doubleValue];
+                }
+                if ([cand respondsToSelector:@selector(height)]) {
+                    height = [[cand valueForKey:@"height"] doubleValue];
+                }
+            } @catch (__unused NSException *e) {}
+        }
+        double pixels = width * height;
+        if (pixels > maxPixels) {
+            maxPixels = pixels;
+            bestCand = cand;
+        }
+    }
+    return bestCand ?: [candidates lastObject];
+}
+
+static NSURL *theta_bestImageURLFromVersions(NSArray *candidates) {
+    id bestCand = theta_bestCandidateFromImageVersions(candidates);
+    if (!bestCand) return nil;
+    if ([bestCand isKindOfClass:[NSURL class]]) {
+        return ((NSURL *)bestCand).scheme.length ? (NSURL *)bestCand : nil;
+    }
+    if ([bestCand isKindOfClass:[NSString class]]) {
+        NSURL *parsed = [NSURL URLWithString:(NSString *)bestCand];
+        return parsed.scheme.length ? parsed : nil;
+    }
+    if ([bestCand isKindOfClass:[NSDictionary class]]) {
+        NSDictionary *d = (NSDictionary *)bestCand;
+        for (NSString *key in @[ @"url", @"URL", @"imageURL", @"imageUrl", @"uri", @"src" ]) {
+            id u = d[key];
+            if ([u isKindOfClass:[NSURL class]] && [(NSURL *)u scheme].length) return (NSURL *)u;
+            if ([u isKindOfClass:[NSString class]]) {
+                NSURL *parsed = [NSURL URLWithString:(NSString *)u];
+                if (parsed.scheme.length) return parsed;
+            }
+        }
+    }
+    for (NSString *key in @[ @"url", @"URL", @"imageURL", @"imageUrl", @"uri", @"src" ]) {
+        @try {
+            id u = [bestCand valueForKey:key];
+            if ([u isKindOfClass:[NSURL class]] && [(NSURL *)u scheme].length) return (NSURL *)u;
+            if ([u isKindOfClass:[NSString class]]) {
+                NSURL *parsed = [NSURL URLWithString:(NSString *)u];
+                if (parsed.scheme.length) return parsed;
+            }
+        } @catch (__unused NSException *e) {}
+    }
+    return nil;
+}
+
+static NSArray *theta_photoVersions(IGPhoto *photo) {
+    if (!photo) return nil;
+    NSArray *versions = nil;
+    @try { versions = [photo valueForKey:@"_originalImageVersions"]; } @catch (__unused NSException *e) {}
+    if (![versions isKindOfClass:[NSArray class]] || versions.count == 0) {
+        @try { versions = [photo valueForKey:@"imageVersions"]; } @catch (__unused NSException *e) {}
+    }
+    if (![versions isKindOfClass:[NSArray class]] || versions.count == 0) {
+        @try { versions = [photo valueForKey:@"_imageVersions"]; } @catch (__unused NSException *e) {}
+    }
+    if (![versions isKindOfClass:[NSArray class]] || versions.count == 0) {
+        @try { versions = [photo valueForKey:@"imageVersions2"]; } @catch (__unused NSException *e) {}
+    }
+    return [versions isKindOfClass:[NSArray class]] && versions.count > 0 ? versions : nil;
+}
+
+static NSData *theta_fetchDataSafe(NSURL *url, NSTimeInterval timeout) {
+    if (!url) return nil;
+    if ([NSThread isMainThread]) {
+        return nil;
+    }
+    __block NSData *resultData = nil;
+    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+    NSURLRequest *request = [NSURLRequest requestWithURL:url cachePolicy:NSURLRequestReturnCacheDataElseLoad timeoutInterval:timeout];
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+        if (!error && data) {
+            resultData = data;
+        }
+        dispatch_semaphore_signal(sem);
+    }];
+    [task resume];
+    dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeout * NSEC_PER_SEC)));
+    return resultData;
+}
+
 static void theta_sweepStaleReelSaveFiles(void) {
     NSFileManager *fm = [NSFileManager defaultManager];
     NSMutableArray<NSString *> *roots = [NSMutableArray array];
@@ -259,13 +358,7 @@ static void downloadHDVideoSelectingURL(IGVideo *inputVideo, NSString *selectedV
         
         // Detect and log video encoding
         AVAsset *videoAsset = [AVAsset assetWithURL:[NSURL fileURLWithPath:videoPath]];
-        {
-            dispatch_semaphore_t videoKeysSem = dispatch_semaphore_create(0);
-            [videoAsset loadValuesAsynchronouslyForKeys:@[@"tracks", @"duration"] completionHandler:^{
-                dispatch_semaphore_signal(videoKeysSem);
-            }];
-            dispatch_semaphore_wait(videoKeysSem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(20 * NSEC_PER_SEC)));
-        }
+        ThetaAVAssetLoadKeys(videoAsset);
         NSArray<AVAssetTrack *> *videoTracks = [videoAsset tracksWithMediaType:AVMediaTypeVideo];
         BOOL isAV1Video = NO;
         if (videoTracks.count > 0) {
@@ -407,6 +500,7 @@ static void downloadHDVideoSelectingURL(IGVideo *inputVideo, NSString *selectedV
         // Detect and log audio encoding if audio file exists
         if (hasAudio) {
             AVAsset *audioAsset = [AVAsset assetWithURL:[NSURL fileURLWithPath:audioPath]];
+            ThetaAVAssetLoadKeys(audioAsset);
             NSArray<AVAssetTrack *> *audioTracks = [audioAsset tracksWithMediaType:AVMediaTypeAudio];
             if (audioTracks.count > 0) {
                 AVAssetTrack *audioTrack = audioTracks[0];
@@ -438,23 +532,13 @@ static void downloadHDVideoSelectingURL(IGVideo *inputVideo, NSString *selectedV
         AVMutableCompositionTrack *compositionAudioTrack = nil;
         
         AVAsset *videoAssetForMerge = [AVAsset assetWithURL:[NSURL fileURLWithPath:videoPath]];
-        {
-            dispatch_semaphore_t loadSem = dispatch_semaphore_create(0);
-            [videoAssetForMerge loadValuesAsynchronouslyForKeys:@[@"tracks", @"duration"] completionHandler:^{
-                dispatch_semaphore_signal(loadSem);
-            }];
-            dispatch_semaphore_wait(loadSem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(20 * NSEC_PER_SEC)));
-        }
+        ThetaAVAssetLoadKeys(videoAssetForMerge);
         AVAssetTrack *videoTrackForMerge = [[videoAssetForMerge tracksWithMediaType:AVMediaTypeVideo] firstObject];
         AVAsset *audioAssetForMerge = nil;
         AVAssetTrack *audioTrackForMerge = nil;
         if (hasAudio) {
             audioAssetForMerge = [AVURLAsset URLAssetWithURL:[NSURL fileURLWithPath:audioPath] options:@{AVURLAssetPreferPreciseDurationAndTimingKey: @YES}];
-            dispatch_semaphore_t audioSem = dispatch_semaphore_create(0);
-            [audioAssetForMerge loadValuesAsynchronouslyForKeys:@[@"tracks", @"duration"] completionHandler:^{
-                dispatch_semaphore_signal(audioSem);
-            }];
-            dispatch_semaphore_wait(audioSem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(20 * NSEC_PER_SEC)));
+            ThetaAVAssetLoadKeys(audioAssetForMerge);
             audioTrackForMerge = [[audioAssetForMerge tracksWithMediaType:AVMediaTypeAudio] firstObject];
         }
 
@@ -521,6 +605,7 @@ static void downloadHDVideoSelectingURL(IGVideo *inputVideo, NSString *selectedV
             if (exportSession.status == AVAssetExportSessionStatusCompleted) {
                 // Verify the merged output actually contains audio
                 AVAsset *mergedAsset = [AVAsset assetWithURL:outputURL];
+                ThetaAVAssetLoadKeys(mergedAsset);
                 NSArray<AVAssetTrack *> *mergedAudioTracks = [mergedAsset tracksWithMediaType:AVMediaTypeAudio];
                 if (hasAudio && mergedAudioTracks.count <= 0) {
                     NSLog(@"ThetaSave: export completed without an audio track (DASH audio may be unsupported)");
@@ -557,6 +642,7 @@ static void downloadHDVideoSelectingURL(IGVideo *inputVideo, NSString *selectedV
                     // Check if file is compatible with Photos library
                     // AV1 video may not be supported by Photos, need to re-encode to H.264
                     AVAsset *checkAsset = [AVAsset assetWithURL:outputURL];
+                    ThetaAVAssetLoadKeys(checkAsset);
                     NSArray<AVAssetTrack *> *checkVideoTracks = [checkAsset tracksWithMediaType:AVMediaTypeVideo];
                     if (checkVideoTracks.count > 0) {
                         AVAssetTrack *checkVideoTrack = checkVideoTracks[0];
@@ -846,11 +932,19 @@ static void downloadMedia(id self) {
 		if (!delegateImpl) {
 			return;
 		}
-        IGMedia *currentMedia;
+        IGMedia *currentMedia = nil;
         if ([delegateImpl isKindOfClass:NSClassFromString(@"IGFeedItemUFICellConfigurableDelegateImpl")]) {
-            currentMedia = [delegateImpl valueForKey:@"_media"];
-        } else if ([delegateImpl isKindOfClass:NSClassFromString(@"IGFeedSectionController")]) {
-            currentMedia = [[delegateImpl performSelector:@selector(mediaCell)] valueForKey:@"_media"];
+            @try { currentMedia = [delegateImpl valueForKey:@"_media"]; } @catch (__unused NSException *e) {}
+        } else if ([delegateImpl respondsToSelector:@selector(mediaCell)]) {
+            @try {
+                id cell = [delegateImpl performSelector:@selector(mediaCell)];
+                if (cell) {
+                    currentMedia = [cell valueForKey:@"_media"] ?: [cell valueForKey:@"media"];
+                }
+            } @catch (__unused NSException *e) {}
+        }
+        if (!currentMedia) {
+            @try { currentMedia = [delegateImpl valueForKey:@"_media"] ?: [delegateImpl valueForKey:@"media"]; } @catch (__unused NSException *e) {}
         }
 
         if (!currentMedia) {
@@ -886,12 +980,11 @@ static void downloadMedia(id self) {
                     if (!handled && [media respondsToSelector:@selector(itemMediaType)]) {
                         if (media.itemMediaType == 1) {
                             IGPhoto *photo = media.photo;
-                            NSArray *originalImageVersions = [photo valueForKey:@"_originalImageVersions"];
-                            if (originalImageVersions.count > 1) {
-                                id photoURL = [originalImageVersions lastObject];
-                                url = [photoURL valueForKey:@"url"];
+                            NSArray *originalImageVersions = theta_photoVersions(photo);
+                            if (originalImageVersions.count > 0) {
+                                url = theta_bestImageURLFromVersions(originalImageVersions);
                                 if (url) {
-                                    NSData *imageData = [NSData dataWithContentsOfURL:url];
+                                    NSData *imageData = theta_fetchDataSafe(url, 5.0);
                                     if (imageData) {
                                         preview = [UIImage imageWithData:imageData];
                                     }
@@ -908,12 +1001,11 @@ static void downloadMedia(id self) {
                     if (!handled && [media respondsToSelector:@selector(mediaType)]) {
                         if (media.mediaType == 1) {
                             IGPhoto *photo = media.photo;
-                            NSArray *originalImageVersions = [photo valueForKey:@"_originalImageVersions"];
-                            if (originalImageVersions.count > 1) {
-                                id photoURL = [originalImageVersions lastObject];
-                                url = [photoURL valueForKey:@"url"];
+                            NSArray *originalImageVersions = theta_photoVersions(photo);
+                            if (originalImageVersions.count > 0) {
+                                url = theta_bestImageURLFromVersions(originalImageVersions);
                                 if (url) {
-                                    NSData *imageData = [NSData dataWithContentsOfURL:url];
+                                    NSData *imageData = theta_fetchDataSafe(url, 5.0);
                                     if (imageData) {
                                         preview = [UIImage imageWithData:imageData];
                                     }
@@ -1005,11 +1097,19 @@ static void fullscreenMediaItem(id self) {
         IGFeedItemPageIndicator *pageControl = [cell valueForKey:@"_pageControl"];
         NSUInteger currentIndex = [[pageControl valueForKey:@"_currentPage"] unsignedIntegerValue];
         IGFeedItemUFICellConfigurableDelegateImpl *delegateImpl = [cell valueForKey:@"delegate"];
-        IGMedia *currentMedia;
+        IGMedia *currentMedia = nil;
         if ([delegateImpl isKindOfClass:NSClassFromString(@"IGFeedItemUFICellConfigurableDelegateImpl")]) {
-            currentMedia = [delegateImpl valueForKey:@"_media"];
-        } else if ([delegateImpl isKindOfClass:NSClassFromString(@"IGFeedSectionController")]) {
-            currentMedia = [[delegateImpl performSelector:@selector(mediaCell)] valueForKey:@"_media"];
+            @try { currentMedia = [delegateImpl valueForKey:@"_media"]; } @catch (__unused NSException *e) {}
+        } else if ([delegateImpl respondsToSelector:@selector(mediaCell)]) {
+            @try {
+                id cell = [delegateImpl performSelector:@selector(mediaCell)];
+                if (cell) {
+                    currentMedia = [cell valueForKey:@"_media"] ?: [cell valueForKey:@"media"];
+                }
+            } @catch (__unused NSException *e) {}
+        }
+        if (!currentMedia) {
+            @try { currentMedia = [delegateImpl valueForKey:@"_media"] ?: [delegateImpl valueForKey:@"media"]; } @catch (__unused NSException *e) {}
         }
 
         IGPostItem *media = [currentMedia.items objectAtIndex:currentIndex];
@@ -1018,10 +1118,9 @@ static void fullscreenMediaItem(id self) {
         if ([media respondsToSelector:@selector(itemMediaType)]) {
             if (media.itemMediaType == 1) {
                 IGPhoto *photo = media.photo;
-                NSArray *originalImageVersions = [photo valueForKey:@"_originalImageVersions"];
-                if (originalImageVersions.count > 1) {
-                    id photoURL = [originalImageVersions lastObject];
-                    url = [photoURL valueForKey:@"url"];
+                NSArray *originalImageVersions = theta_photoVersions(photo);
+                if (originalImageVersions.count > 0) {
+                    url = theta_bestImageURLFromVersions(originalImageVersions);
                 }
             } else if (media.itemMediaType == 2) {
                 IGVideo *video = media.video;
@@ -1033,10 +1132,9 @@ static void fullscreenMediaItem(id self) {
         if ([media respondsToSelector:@selector(mediaType)]) {
             if (media.mediaType == 1) {
                 IGPhoto *photo = media.photo;
-                NSArray *originalImageVersions = [photo valueForKey:@"_originalImageVersions"];
-                if (originalImageVersions.count > 1) {
-                    id photoURL = [originalImageVersions lastObject];
-                    url = [photoURL valueForKey:@"url"];
+                NSArray *originalImageVersions = theta_photoVersions(photo);
+                if (originalImageVersions.count > 0) {
+                    url = theta_bestImageURLFromVersions(originalImageVersions);
                 }
             } else if (media.mediaType == 2) {
                 IGVideo *video = media.video;
@@ -1162,6 +1260,8 @@ static void hook_savePost(id self, SEL _cmd) {
     }
 }
 
+static IGMedia *theta_sundialMediaFromUFI(id ufi);
+
 static void downloadSundialMedia(id self) {
     IGSundialViewerControlsOverlayView *delegate = [self valueForKey:@"delegate"];
     IGMedia *media = nil;
@@ -1171,9 +1271,10 @@ static void downloadSundialMedia(id self) {
         @try {
             media = delegate.media;
         } @catch (NSException *exception) {
-            NSLog(@"Error: %@", exception);
-            return; // Early return if we can't get media
         }
+    }
+    if (!media) {
+        media = theta_sundialMediaFromUFI(self);
     }
     
     if (!media) {
@@ -1207,12 +1308,11 @@ static void downloadSundialMedia(id self) {
                 if (mediaItem.itemMediaType == 1) {
                     IGPhoto *photo = mediaItem.photo;
                     if (photo) {
-                        NSArray *originalImageVersions = [photo valueForKey:@"_originalImageVersions"];
-                        if (originalImageVersions.count > 1) {
-                            id photoURL = [originalImageVersions lastObject];
-                            url = [photoURL valueForKey:@"url"];
+                        NSArray *originalImageVersions = theta_photoVersions(photo);
+                        if (originalImageVersions.count > 0) {
+                            url = theta_bestImageURLFromVersions(originalImageVersions);
                             if (url) {
-                                NSData *imageData = [NSData dataWithContentsOfURL:url];
+                                NSData *imageData = theta_fetchDataSafe(url, 5.0);
                                 if (imageData) {
                                     preview = [UIImage imageWithData:imageData];
                                 }
@@ -1234,12 +1334,11 @@ static void downloadSundialMedia(id self) {
                 if (mediaItem.mediaType == 1) {
                     IGPhoto *photo = mediaItem.photo;
                     if (photo) {
-                        NSArray *originalImageVersions = [photo valueForKey:@"_originalImageVersions"];
-                        if (originalImageVersions.count > 1) {
-                            id photoURL = [originalImageVersions lastObject];
-                            url = [photoURL valueForKey:@"url"];
+                        NSArray *originalImageVersions = theta_photoVersions(photo);
+                        if (originalImageVersions.count > 0) {
+                            url = theta_bestImageURLFromVersions(originalImageVersions);
                             if (url) {
-                                NSData *imageData = [NSData dataWithContentsOfURL:url];
+                                NSData *imageData = theta_fetchDataSafe(url, 5.0);
                                 if (imageData) {
                                     preview = [UIImage imageWithData:imageData];
                                 }
@@ -1312,10 +1411,9 @@ static void downloadSundialMedia(id self) {
                     if (mediaItem.itemMediaType == 1) {
                         IGPhoto *photo = mediaItem.photo;
                         if (photo) {
-                            NSArray *originalImageVersions = [photo valueForKey:@"_originalImageVersions"];
-                            if (originalImageVersions.count > 1) {
-                                id photoURL = [originalImageVersions lastObject];
-                                url = [photoURL valueForKey:@"url"];
+                            NSArray *originalImageVersions = theta_photoVersions(photo);
+                            if (originalImageVersions.count > 0) {
+                                url = theta_bestImageURLFromVersions(originalImageVersions);
                             }
                         }
                     }
@@ -1323,10 +1421,9 @@ static void downloadSundialMedia(id self) {
                     if (mediaItem.mediaType == 1) {
                         IGPhoto *photo = mediaItem.photo;
                         if (photo) {
-                            NSArray *originalImageVersions = [photo valueForKey:@"_originalImageVersions"];
-                            if (originalImageVersions.count > 1) {
-                                id photoURL = [originalImageVersions lastObject];
-                                url = [photoURL valueForKey:@"url"];
+                            NSArray *originalImageVersions = theta_photoVersions(photo);
+                            if (originalImageVersions.count > 0) {
+                                url = theta_bestImageURLFromVersions(originalImageVersions);
                             }
                         }
                     }
@@ -1718,35 +1815,61 @@ static void hook_sundialViewerVerticalUFI(IGSundialViewerVerticalUFI *self, SEL 
 				return;
 			}
 
-			UIButton *downloadButton = [UIButton buttonWithType:UIButtonTypeSystem];
-			downloadButton.tag = 999;
-			[downloadButton setTintColor:[UIColor whiteColor]];
-			[downloadButton setImage:[UIImage systemImageNamed:@"arrow.down"] forState:UIControlStateNormal];
-			[downloadButton setTranslatesAutoresizingMaskIntoConstraints:false];
-			downloadButton.layer.shadowColor = [UIColor blackColor].CGColor;
-			downloadButton.layer.shadowOpacity = 0.6;
-			downloadButton.layer.shadowOffset = CGSizeMake(0, 1);
-			downloadButton.layer.shadowRadius = 4;
-			downloadButton.layer.masksToBounds = NO;
+			UIColor *downloadColor = [UIColor whiteColor];
+			@try {
+				NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"Save Button Color_Color"];
+				UIColor *color = [NSKeyedUnarchiver unarchivedObjectOfClass:[UIColor class] fromData:data error:nil];
+				if (color) downloadColor = color;
+			} @catch (__unused NSException *exception) {}
 
+			UIButton *downloadButton = [ThetaFloatingMediaButton buttonWithSystemImage:@"arrow.down" tintColor:downloadColor];
+			downloadButton.tag = 999;
 			ThetaSetCaptureHiding(downloadButton);
 			[self addSubview:downloadButton];
-            theta_configureReelDownloadMenu(downloadButton, self);
+			theta_configureReelDownloadMenu(downloadButton, self);
 
+			UIView *targetAnchorView = nil;
 			if ([self respondsToSelector:@selector(ufiLikeButton)]) {
+				targetAnchorView = [self performSelector:@selector(ufiLikeButton)];
+			}
+			if (!targetAnchorView && [self respondsToSelector:@selector(likeButton)]) {
+				targetAnchorView = [self performSelector:@selector(likeButton)];
+			}
+			if (!targetAnchorView) {
+				@try { targetAnchorView = [self valueForKey:@"ufiLikeButton"]; } @catch (__unused NSException *e) {}
+			}
+			if (!targetAnchorView) {
+				@try { targetAnchorView = [self valueForKey:@"likeButton"]; } @catch (__unused NSException *e) {}
+			}
+			if (!targetAnchorView) {
+				@try { targetAnchorView = [self valueForKey:@"_likeButton"]; } @catch (__unused NSException *e) {}
+			}
+			if (!targetAnchorView) {
+				@try { targetAnchorView = [self valueForKey:@"likeControl"]; } @catch (__unused NSException *e) {}
+			}
+			if (!targetAnchorView) {
+				@try { targetAnchorView = [self valueForKey:@"_likeControl"]; } @catch (__unused NSException *e) {}
+			}
+			if (!targetAnchorView) {
+				for (UIView *sub in self.subviews) {
+					if (sub != downloadButton && ([sub isKindOfClass:[UIButton class]] || [sub isKindOfClass:[UIControl class]])) {
+						targetAnchorView = sub;
+						break;
+					}
+				}
+			}
+
+			if (targetAnchorView) {
 				[NSLayoutConstraint activateConstraints:@[
-					[downloadButton.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
-					[downloadButton.bottomAnchor constraintEqualToAnchor:self.ufiLikeButton.topAnchor constant:15],
+					[downloadButton.centerXAnchor constraintEqualToAnchor:targetAnchorView.centerXAnchor],
+					[downloadButton.bottomAnchor constraintEqualToAnchor:targetAnchorView.topAnchor constant:-15],
 					[downloadButton.widthAnchor constraintEqualToConstant:44],
 					[downloadButton.heightAnchor constraintEqualToConstant:44],
 				]];
-			} else if ([self respondsToSelector:@selector(likeButton)]) {
-
-				UIButton *likeButton = [self valueForKey:@"likeButton"];
-
+			} else {
 				[NSLayoutConstraint activateConstraints:@[
 					[downloadButton.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
-					[downloadButton.bottomAnchor constraintEqualToAnchor:likeButton.topAnchor],
+					[downloadButton.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
 					[downloadButton.widthAnchor constraintEqualToConstant:44],
 					[downloadButton.heightAnchor constraintEqualToConstant:44],
 				]];

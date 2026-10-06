@@ -113,31 +113,80 @@ static void hook_visualmsgghostbuttons(IGDirectVisualMessageViewerController *se
             [downloadButton addAction:[UIAction actionWithHandler:^(UIAction *action) {
                 __strong typeof(weakSelf) strongSelf = weakSelf;
                 if (!strongSelf) return;
-                id initialVisualMessage = [strongSelf valueForKey:@"_initialVisualMessage"];
-                id visualMediaInfo = [initialVisualMessage valueForKey:@"_visualMediaInfo"];
-                id media = [visualMediaInfo valueForKey:@"media"];
-                if ([media valueForKey:@"_video_video"]) {
-                    IGVideo *video = [media valueForKey:@"_video_video"];
+                id initialVisualMessage = nil;
+                @try { initialVisualMessage = [strongSelf valueForKey:@"_initialVisualMessage"]; } @catch (__unused NSException *e) {}
+                id visualMediaInfo = nil;
+                @try { visualMediaInfo = [initialVisualMessage valueForKey:@"_visualMediaInfo"]; } @catch (__unused NSException *e) {}
+                id media = nil;
+                @try { media = [visualMediaInfo valueForKey:@"media"]; } @catch (__unused NSException *e) {}
+                id video = nil;
+                @try { video = [media valueForKey:@"_video_video"] ?: [media valueForKey:@"video"]; } @catch (__unused NSException *e) {}
+                if (video) {
                     downloadHDVideo(video);
                 }
 
-                if ([media valueForKey:@"_photo_photo"]) {
-                    IGPhoto *photo = [media valueForKey:@"_photo_photo"];
-                    NSArray *originalImageVersions = [photo valueForKey:@"_originalImageVersions"];
-                    if (originalImageVersions.count > 1) {
-                        id photoURL = [originalImageVersions lastObject];
-                        NSURL *url = [photoURL valueForKey:@"url"];
-                        MediaSelectionViewController *mediaSelectionViewController = [[MediaSelectionViewController alloc] init];
-                        [mediaSelectionViewController downloadMediaToTemp:url completion:^(NSString *filePath, NSString *fileExtension){
-                            if (ENABLED(@"Show Banners")) {
-                                NSInteger saveMethod = [[NSUserDefaults standardUserDefaults] integerForKey:@"Save Method_SegmentIndex"];
-                                if (saveMethod == 0) {
-                                    [ThetaHelper showToastWithTitle:@"Saved to camera roll!" subtitle:@"Tap here to go to camera roll." icon:[UIImage systemImageNamed:@"checkmark.circle.fill"] autoHide:4 openURL:[NSURL URLWithString:@"photos-redirect://"]];
-                                } else {
-                                    [ThetaHelper showToastWithTitle:@"Saved!" subtitle:@"Saved to local folder." icon:[UIImage systemImageNamed:@"checkmark.circle.fill"] autoHide:4 openURL:nil];
-                                }
+                id photo = nil;
+                @try { photo = [media valueForKey:@"_photo_photo"] ?: [media valueForKey:@"photo"]; } @catch (__unused NSException *e) {}
+                if (photo) {
+                    NSArray *originalImageVersions = nil;
+                    @try { originalImageVersions = [photo valueForKey:@"_originalImageVersions"]; } @catch (__unused NSException *e) {}
+                    if (![originalImageVersions isKindOfClass:[NSArray class]] || originalImageVersions.count == 0) {
+                        @try { originalImageVersions = [photo valueForKey:@"imageVersions"]; } @catch (__unused NSException *e) {}
+                    }
+                    if (![originalImageVersions isKindOfClass:[NSArray class]] || originalImageVersions.count == 0) {
+                        @try { originalImageVersions = [photo valueForKey:@"_imageVersions"]; } @catch (__unused NSException *e) {}
+                    }
+                    if ([originalImageVersions isKindOfClass:[NSArray class]] && originalImageVersions.count > 0) {
+                        id bestCand = nil;
+                        double maxPixels = -1.0;
+                        for (id cand in originalImageVersions) {
+                            double width = 0.0, height = 0.0;
+                            if ([cand isKindOfClass:[NSDictionary class]]) {
+                                NSDictionary *d = (NSDictionary *)cand;
+                                if (d[@"width"]) width = [d[@"width"] doubleValue];
+                                if (d[@"height"]) height = [d[@"height"] doubleValue];
+                            } else {
+                                @try {
+                                    if ([cand respondsToSelector:@selector(width)]) width = [[cand valueForKey:@"width"] doubleValue];
+                                    if ([cand respondsToSelector:@selector(height)]) height = [[cand valueForKey:@"height"] doubleValue];
+                                } @catch (__unused NSException *e) {}
                             }
-                        }];
+                            double pixels = width * height;
+                            if (pixels > maxPixels) {
+                                maxPixels = pixels;
+                                bestCand = cand;
+                            }
+                        }
+                        id photoURL = bestCand ?: [originalImageVersions lastObject];
+                        NSURL *url = nil;
+                        if ([photoURL isKindOfClass:[NSURL class]]) {
+                            url = (NSURL *)photoURL;
+                        } else if ([photoURL isKindOfClass:[NSString class]]) {
+                            url = [NSURL URLWithString:(NSString *)photoURL];
+                        } else if ([photoURL isKindOfClass:[NSDictionary class]]) {
+                            id u = ((NSDictionary *)photoURL)[@"url"];
+                            if ([u isKindOfClass:[NSURL class]]) url = (NSURL *)u;
+                            else if ([u isKindOfClass:[NSString class]]) url = [NSURL URLWithString:(NSString *)u];
+                        } else {
+                            @try {
+                                id u = [photoURL valueForKey:@"url"];
+                                if ([u isKindOfClass:[NSURL class]]) url = (NSURL *)u;
+                                else if ([u isKindOfClass:[NSString class]]) url = [NSURL URLWithString:(NSString *)u];
+                            } @catch (__unused NSException *e) {}
+                        }
+                        if (url) {
+                            MediaSelectionViewController *mediaSelectionViewController = [[MediaSelectionViewController alloc] init];
+                            [mediaSelectionViewController downloadMediaToTemp:url completion:^(NSString *filePath, NSString *fileExtension){
+                                if (ENABLED(@"Show Banners")) {
+                                    NSInteger saveMethod = [[NSUserDefaults standardUserDefaults] integerForKey:@"Save Method_SegmentIndex"];
+                                    if (saveMethod == 0) {
+                                        [ThetaHelper showToastWithTitle:@"Saved to camera roll!" subtitle:@"Tap here to go to camera roll." icon:[UIImage systemImageNamed:@"checkmark.circle.fill"] autoHide:4 openURL:[NSURL URLWithString:@"photos-redirect://"]];
+                                    } else {
+                                        [ThetaHelper showToastWithTitle:@"Saved!" subtitle:@"Saved to local folder." icon:[UIImage systemImageNamed:@"checkmark.circle.fill"] autoHide:4 openURL:nil];
+                                    }
+                                }
+                            }];
+                        }
                     }
                 }
             }] forControlEvents:UIControlEventTouchUpInside];

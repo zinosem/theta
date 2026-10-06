@@ -537,14 +537,19 @@ NSString *IGDashManifestBestAudioURL(NSString *manifest) {
     return u.length ? u : nil;
 }
 
-static BOOL ThetaAVAssetLoadKeys(AVAsset *asset) {
+BOOL ThetaAVAssetLoadKeys(AVAsset *asset) {
     if (!asset) return NO;
+    NSError *err = nil;
+    if ([asset statusOfValueForKey:@"tracks" error:&err] == AVKeyValueStatusLoaded &&
+        [asset statusOfValueForKey:@"duration" error:nil] == AVKeyValueStatusLoaded) {
+        return YES;
+    }
     dispatch_semaphore_t sem = dispatch_semaphore_create(0);
     [asset loadValuesAsynchronouslyForKeys:@[@"tracks", @"duration"] completionHandler:^{
         dispatch_semaphore_signal(sem);
     }];
-    dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(20 * NSEC_PER_SEC)));
-    NSError *err = nil;
+    int64_t timeoutSec = [NSThread isMainThread] ? 3 : 20;
+    dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeoutSec * NSEC_PER_SEC)));
     return [asset statusOfValueForKey:@"tracks" error:&err] == AVKeyValueStatusLoaded;
 }
 

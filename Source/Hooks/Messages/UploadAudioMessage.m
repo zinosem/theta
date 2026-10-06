@@ -1,4 +1,5 @@
 #import "Include/ThetaHelper.h"
+#import "Include/ThetaDashManifest.h"
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
 #import <objc/message.h>
@@ -22,11 +23,7 @@ static id ThetaBuildWaveformFromAudioURL(NSURL *audioURL, CGFloat intervalSec) {
 		if (!audioURL) return nil;
 		
 		AVURLAsset *asset = [AVURLAsset URLAssetWithURL:audioURL options:nil];
-		dispatch_semaphore_t loadSem = dispatch_semaphore_create(0);
-		[asset loadValuesAsynchronouslyForKeys:@[@"tracks", @"duration"] completionHandler:^{
-			dispatch_semaphore_signal(loadSem);
-		}];
-		dispatch_semaphore_wait(loadSem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(15 * NSEC_PER_SEC)));
+		ThetaAVAssetLoadKeys(asset);
 		AVAssetTrack *audioTrack = [[asset tracksWithMediaType:AVMediaTypeAudio] firstObject];
 		if (!audioTrack) return nil;
 		
@@ -405,7 +402,8 @@ static void hook_uploadAudioMessage3(id self, SEL _cmd, id viewController, id au
 
 		// Prepare export of audio track as MP4 (audio-only). Fallback to M4A if needed.
 		AVURLAsset *asset = [AVURLAsset URLAssetWithURL:videoURL options:nil];
-		CGFloat durationSeconds = asset ? (CGFloat)CMTimeGetSeconds(asset.duration) : 0.0f;
+		ThetaAVAssetLoadKeys(asset);
+		CGFloat durationSeconds = (asset && CMTIME_IS_NUMERIC(asset.duration)) ? (CGFloat)CMTimeGetSeconds(asset.duration) : 0.0f;
 		NSURL *tempDirURL = [NSURL fileURLWithPath:NSTemporaryDirectory() isDirectory:YES];
 		NSString *mp4Name = [NSString stringWithFormat:@"theta_upload_%@.mp4", [[NSUUID UUID] UUIDString]];
 		NSURL *mp4URL = [tempDirURL URLByAppendingPathComponent:mp4Name];
@@ -415,7 +413,7 @@ static void hook_uploadAudioMessage3(id self, SEL _cmd, id viewController, id au
 		AVMutableComposition *composition = [AVMutableComposition composition];
 		NSError *compError = nil;
 		AVAssetTrack *audioSrc = [[asset tracksWithMediaType:AVMediaTypeAudio] firstObject];
-		if (audioSrc) {
+		if (audioSrc && CMTIME_IS_NUMERIC(asset.duration)) {
 			AVMutableCompositionTrack *audioComp = [composition addMutableTrackWithMediaType:AVMediaTypeAudio preferredTrackID:kCMPersistentTrackID_Invalid];
 			[audioComp insertTimeRange:CMTimeRangeMake(kCMTimeZero, asset.duration) ofTrack:audioSrc atTime:kCMTimeZero error:&compError];
 		}
@@ -503,7 +501,17 @@ static void hook_uploadAudioMessage3(id self, SEL _cmd, id viewController, id au
 	gThetaExportInProgress = YES;
 	
 	AVURLAsset *asset = [AVURLAsset URLAssetWithURL:docURL options:nil];
-	CGFloat durationSeconds = asset ? (CGFloat)CMTimeGetSeconds(asset.duration) : 0.0f;
+	if (asset) {
+		ThetaAVAssetLoadKeys(asset);
+	}
+	CGFloat durationSeconds = 0.0f;
+	NSError *playerError = nil;
+	AVAudioPlayer *audioPlayer = [[AVAudioPlayer alloc] initWithContentsOfURL:docURL error:&playerError];
+	if (audioPlayer && audioPlayer.duration > 0) {
+		durationSeconds = (CGFloat)audioPlayer.duration;
+	} else if (asset && CMTIME_IS_NUMERIC(asset.duration)) {
+		durationSeconds = (CGFloat)CMTimeGetSeconds(asset.duration);
+	}
 	NSURL *tempDirURL = [NSURL fileURLWithPath:NSTemporaryDirectory() isDirectory:YES];
 	NSString *m4aName = [NSString stringWithFormat:@"theta_upload_%@.m4a", [[NSUUID UUID] UUIDString]];
 	NSURL *m4aURL = [tempDirURL URLByAppendingPathComponent:m4aName];

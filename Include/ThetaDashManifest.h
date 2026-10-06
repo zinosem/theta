@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 
 @class NSURL;
+@class AVAsset;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -31,6 +32,8 @@ FOUNDATION_EXPORT NSString * _Nullable IGDashManifestBestAudioURL(NSString * _Nu
 
 /** Rename/transcode a DASH audio download so AVFoundation can mux it. */
 FOUNDATION_EXPORT NSString * _Nullable ThetaPrepareDashAudioForMerge(NSString *audioPath);
+
+FOUNDATION_EXPORT BOOL ThetaAVAssetLoadKeys(AVAsset * _Nullable asset);
 
 NS_ASSUME_NONNULL_END
 

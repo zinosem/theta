@@ -156,12 +156,45 @@ static BOOL thetaStoryMarkItemAsSeen(IGStoryFullscreenCell *cell, id item) {
     }
 }
 
+static id thetaStoryBestCandidate(NSArray *candidates) {
+    if (!candidates || ![candidates isKindOfClass:[NSArray class]] || candidates.count == 0) return nil;
+    id bestCand = nil;
+    double maxPixels = -1.0;
+    for (id cand in candidates) {
+        double width = 0.0, height = 0.0;
+        if ([cand isKindOfClass:[NSDictionary class]]) {
+            NSDictionary *d = (NSDictionary *)cand;
+            if (d[@"width"]) width = [d[@"width"] doubleValue];
+            if (d[@"height"]) height = [d[@"height"] doubleValue];
+        } else {
+            @try {
+                if ([cand respondsToSelector:@selector(width)]) width = [[cand valueForKey:@"width"] doubleValue];
+                if ([cand respondsToSelector:@selector(height)]) height = [[cand valueForKey:@"height"] doubleValue];
+            } @catch (__unused NSException *e) {}
+        }
+        double pixels = width * height;
+        if (pixels > maxPixels) {
+            maxPixels = pixels;
+            bestCand = cand;
+        }
+    }
+    return bestCand ?: [candidates lastObject];
+}
+
 static NSURL *thetaStoryURLFromCandidate(id cand) {
     if (!cand) return nil;
     if ([cand isKindOfClass:[NSURL class]]) return cand;
     if ([cand isKindOfClass:[NSString class]]) {
         NSURL *u = [NSURL URLWithString:(NSString *)cand];
         return u.scheme.length ? u : nil;
+    }
+    if ([cand isKindOfClass:[NSDictionary class]]) {
+        id url = ((NSDictionary *)cand)[@"url"];
+        if ([url isKindOfClass:[NSURL class]]) return url;
+        if ([url isKindOfClass:[NSString class]]) {
+            NSURL *u = [NSURL URLWithString:(NSString *)url];
+            return u.scheme.length ? u : nil;
+        }
     }
     id url = ThetaValueForKey(cand, @"url");
     if ([url isKindOfClass:[NSURL class]]) return url;
@@ -179,7 +212,8 @@ static NSURL *thetaStoryBestImageURLFromMedia(id media) {
         id urls = nil;
         @try { urls = [media performSelector:@selector(hintableImageURLs)]; } @catch (__unused NSException *e) {}
         if ([urls isKindOfClass:[NSArray class]] && [urls count] > 0) {
-            NSURL *u = thetaStoryURLFromCandidate([urls lastObject]);
+            id best = thetaStoryBestCandidate(urls);
+            NSURL *u = thetaStoryURLFromCandidate(best);
             if (u) return u;
             for (id o in urls) {
                 u = thetaStoryURLFromCandidate(o);
@@ -202,9 +236,11 @@ static NSURL *thetaStoryBestImageURLFromMedia(id media) {
 
     NSArray *versions = ThetaValueForKey(photo, @"_originalImageVersions");
     if (![versions isKindOfClass:[NSArray class]]) versions = ThetaValueForKey(photo, @"imageVersions");
+    if (![versions isKindOfClass:[NSArray class]]) versions = ThetaValueForKey(photo, @"_imageVersions");
     if (![versions isKindOfClass:[NSArray class]]) versions = ThetaValueForKey(media, @"imageVersions");
     if ([versions isKindOfClass:[NSArray class]] && versions.count > 0) {
-        NSURL *u = thetaStoryURLFromCandidate([versions lastObject]);
+        id best = thetaStoryBestCandidate(versions);
+        NSURL *u = thetaStoryURLFromCandidate(best);
         if (u) return u;
     }
     return nil;
@@ -425,101 +461,110 @@ static void downloadAllMedia(IGStoryFullscreenCell *self) {
 	NSURL *url = nil;
 	UIImage *preview = nil;
 	if (viewModel) {
-		for (id item in items) {
-			if (item && [item isKindOfClass:NSClassFromString(@"IGMedia")]) {
-				id media = item;
-				BOOL isPhoto = NO;
-				@try {
-					if ([media respondsToSelector:@selector(isPhotoMedia)]) {
-						isPhoto = ((BOOL (*)(id, SEL))objc_msgSend)(media, @selector(isPhotoMedia));
-					} else {
-						id flag = [media valueForKey:@"isPhotoMedia"];
-						if ([flag isKindOfClass:[NSNumber class]]) {
-							isPhoto = [flag boolValue];
-						}
-					}
-				} @catch (__unused NSException *e) {}
-				if (isPhoto) {
-					@try {
-						id photo = nil;
-						if ([media respondsToSelector:@selector(photo)]) {
-							photo = [media performSelector:@selector(photo)];
-						}
-						if (!photo) continue;
-						NSArray *originalImageVersions = nil;
+		dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+			@autoreleasepool {
+				for (id item in items) {
+					if (item && [item isKindOfClass:NSClassFromString(@"IGMedia")]) {
+						id media = item;
+						BOOL isPhoto = NO;
 						@try {
-							originalImageVersions = [photo valueForKey:@"_originalImageVersions"];
-						} @catch (__unused NSException *e) {}
-						id photoURL;
-						if ([originalImageVersions isKindOfClass:[NSArray class]] && [originalImageVersions count] > 1) {
-							photoURL = [originalImageVersions lastObject];
-							@try { url = [photoURL valueForKey:@"url"]; } @catch (__unused NSException *e) {}
-							if ([url isKindOfClass:[NSURL class]]) {
-								NSData *data = [NSData dataWithContentsOfURL:url];
-								if (data) preview = [UIImage imageWithData:data];
+							if ([media respondsToSelector:@selector(isPhotoMedia)]) {
+								isPhoto = ((BOOL (*)(id, SEL))objc_msgSend)(media, @selector(isPhotoMedia));
 							} else {
-								url = nil;
+								id flag = [media valueForKey:@"isPhotoMedia"];
+								if ([flag isKindOfClass:[NSNumber class]]) {
+									isPhoto = [flag boolValue];
+								}
+							}
+						} @catch (__unused NSException *e) {}
+						if (isPhoto) {
+							@try {
+								id photo = nil;
+								if ([media respondsToSelector:@selector(photo)]) {
+									photo = [media performSelector:@selector(photo)];
+								}
+								if (!photo) continue;
+								NSArray *originalImageVersions = nil;
+								@try {
+									originalImageVersions = [photo valueForKey:@"_originalImageVersions"];
+								} @catch (__unused NSException *e) {}
+								if (![originalImageVersions isKindOfClass:[NSArray class]] || originalImageVersions.count == 0) {
+									@try { originalImageVersions = [photo valueForKey:@"imageVersions"]; } @catch (__unused NSException *e) {}
+								}
+								if (![originalImageVersions isKindOfClass:[NSArray class]] || originalImageVersions.count == 0) {
+									@try { originalImageVersions = [photo valueForKey:@"_imageVersions"]; } @catch (__unused NSException *e) {}
+								}
+								if ([originalImageVersions isKindOfClass:[NSArray class]] && [originalImageVersions count] > 0) {
+									id bestCand = thetaStoryBestCandidate(originalImageVersions);
+									url = thetaStoryURLFromCandidate(bestCand);
+									if (url) {
+										NSData *data = [NSData dataWithContentsOfURL:url];
+										if (data) preview = [UIImage imageWithData:data];
+									}
+								}
+							} @catch (NSException *exception) {
+								NSLog(@"Error downloading image: %@", exception);
+							}
+						} else {
+							@try {
+								id video = nil;
+								if ([media respondsToSelector:@selector(video)]) {
+									video = [media performSelector:@selector(video)];
+								}
+								if (!video) video = ThetaValueForKey(media, @"video");
+								if (!video) video = ThetaValueForKey(media, @"rawVideo");
+								if (video) {
+									[igvideos addObject:video];
+								}
+							} @catch (NSException *exception) {
+								NSLog(@"Error downloading video: %@", exception);
 							}
 						}
-					} @catch (NSException *exception) {
-						NSLog(@"Error downloading image: %@", exception);
 					}
-				} else {
-					@try {
-						id video = nil;
-						if ([media respondsToSelector:@selector(video)]) {
-							video = [media performSelector:@selector(video)];
-						}
-						if (video) {
-							[igvideos addObject:video];
-						}
-					} @catch (NSException *exception) {
-						NSLog(@"Error downloading video: %@", exception);
+					
+					if (url && url.absoluteString) {  // Make sure we have a valid URL
+						NSDictionary *mediaDict = @{ @"url": url.absoluteString, @"preview": preview ?: [UIImage systemImageNamed:@"photo"] };
+						[mediaItems addObject:mediaDict];
+						url = nil;  // Reset URL to avoid duplicates
+						preview = nil;
 					}
 				}
-			}
-			
-			if (url && url.absoluteString) {  // Make sure we have a valid URL
-				NSDictionary *mediaDict = @{ @"url": url.absoluteString, @"preview": preview ?: [UIImage systemImageNamed:@"photo"] };
-				[mediaItems addObject:mediaDict];
-				url = nil;  // Reset URL to avoid duplicates
-				preview = nil;
-			}
-		}
 
-		dispatch_async(dispatch_get_main_queue(), ^{
-			// If we have HD videos always use the HD path
-			if (igvideos.count > 0) {
-				// Preload HD video thumbnails before showing the view controller
-				[MediaSelectionViewController preloadHDVideoThumbnails:igvideos completion:^{
-					dispatch_async(dispatch_get_main_queue(), ^{
-						MediaSelectionViewController *mediaSelectionVC = [[MediaSelectionViewController alloc] initWithMediaItems:mediaItems hdVideos:igvideos withCount:mediaItems.count + igvideos.count];
+				dispatch_async(dispatch_get_main_queue(), ^{
+					// If we have HD videos always use the HD path
+					if (igvideos.count > 0) {
+						// Preload HD video thumbnails before showing the view controller
+						[MediaSelectionViewController preloadHDVideoThumbnails:igvideos completion:^{
+							dispatch_async(dispatch_get_main_queue(), ^{
+								MediaSelectionViewController *mediaSelectionVC = [[MediaSelectionViewController alloc] initWithMediaItems:mediaItems hdVideos:igvideos withCount:mediaItems.count + igvideos.count];
+								UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:mediaSelectionVC];
+								[[ThetaHelper topViewController] presentViewController:navController animated:YES completion:nil];
+							});
+						}];
+						return;
+					}
+
+					// Handle regular media items
+					if (mediaItems.count == 1) {
+						NSDictionary *mediaDict = mediaItems.firstObject;
+						NSURL *url = [NSURL URLWithString:mediaDict[@"url"]];
+						if (url) {
+							MediaSelectionViewController *mediaSelectionVC = [[MediaSelectionViewController alloc] init];
+							[mediaSelectionVC downloadMediaToTemp:url completion:^(NSString *filePath, NSString *fileExtension){
+								if (ENABLED(@"Show Banners")) {
+									[ThetaHelper showToastWithTitle:@"Saved to camera roll!" subtitle:@"Tap here to go to camera roll." icon:[UIImage systemImageNamed:@"checkmark.circle.fill"] autoHide:4 openURL:[NSURL URLWithString:@"photos-redirect://"]];
+								}
+							}];
+						}
+						return;
+					}
+
+					if (mediaItems.count > 1) {
+						MediaSelectionViewController *mediaSelectionVC = [[MediaSelectionViewController alloc] initWithMediaItems:mediaItems withCount:mediaItems.count];
 						UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:mediaSelectionVC];
 						[[ThetaHelper topViewController] presentViewController:navController animated:YES completion:nil];
-					});
-				}];
-				return;
-			}
-
-			// Handle regular media items
-			if (mediaItems.count == 1) {
-				NSDictionary *mediaDict = mediaItems.firstObject;
-				NSURL *url = [NSURL URLWithString:mediaDict[@"url"]];
-				if (url) {
-					MediaSelectionViewController *mediaSelectionVC = [[MediaSelectionViewController alloc] init];
-					[mediaSelectionVC downloadMediaToTemp:url completion:^(NSString *filePath, NSString *fileExtension){
-						if (ENABLED(@"Show Banners")) {
-                            [ThetaHelper showToastWithTitle:@"Saved to camera roll!" subtitle:@"Tap here to go to camera roll." icon:[UIImage systemImageNamed:@"checkmark.circle.fill"] autoHide:4 openURL:[NSURL URLWithString:@"photos-redirect://"]];
-                        }
-					}];
-				}
-				return;
-			}
-
-			if (mediaItems.count > 1) {
-				MediaSelectionViewController *mediaSelectionVC = [[MediaSelectionViewController alloc] initWithMediaItems:mediaItems withCount:mediaItems.count];
-				UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:mediaSelectionVC];
-											[[ThetaHelper topViewController] presentViewController:navController animated:YES completion:nil];
+					}
+				});
 			}
 		});
 	}
@@ -1082,11 +1127,51 @@ static void setupButtons(IGStoryFullscreenCell *self) {
 
     NSNumber *cellKey = @((uintptr_t)self);
     NSString *ownerKey = thetaStoryOwnerKey(owner) ?: @"";
-    NSString *lastOwnerKey = lastSetupOwnerForCell[cellKey];
-    if ([lastOwnerKey isKindOfClass:[NSString class]] && [lastOwnerKey isEqualToString:ownerKey] && ownerKey.length > 0) {
+
+    id currentItem = nil;
+    @try {
+        if ([firstDelegate respondsToSelector:@selector(currentStoryItem)]) {
+            currentItem = [firstDelegate performSelector:@selector(currentStoryItem)];
+        } else if ([firstDelegate respondsToSelector:@selector(valueForKey:)]) {
+            currentItem = [firstDelegate valueForKey:@"currentStoryItem"];
+        }
+    } @catch (__unused NSException *e) {}
+    if (!currentItem) {
+        id viewer = thetaStoryViewerFromCell(self);
+        @try {
+            if ([viewer respondsToSelector:@selector(currentStoryItem)]) {
+                currentItem = [viewer performSelector:@selector(currentStoryItem)];
+            }
+        } @catch (__unused NSException *e) {}
+    }
+
+    NSString *itemPk = nil;
+    if (currentItem) {
+        @try {
+            id pk = ThetaValueForKey(currentItem, @"pk");
+            if (!pk) {
+                id media = ThetaValueForKey(currentItem, @"media");
+                if (media) pk = ThetaValueForKey(media, @"pk");
+            }
+            if (pk) itemPk = [NSString stringWithFormat:@"%@", pk];
+        } @catch (__unused NSException *e) {}
+    }
+
+    NSString *cacheKey = [NSString stringWithFormat:@"%@_%@", ownerKey, itemPk ?: @""];
+
+    BOOL hasButtons = NO;
+    for (UIView *subview in self.subviews) {
+        if ([subview isKindOfClass:[UIButton class]] && subview.tag == kThetaStoryButtonTag) {
+            hasButtons = YES;
+            break;
+        }
+    }
+
+    NSString *lastCacheKey = lastSetupOwnerForCell[cellKey];
+    if (hasButtons && [lastCacheKey isKindOfClass:[NSString class]] && [lastCacheKey isEqualToString:cacheKey] && cacheKey.length > 0) {
         return;
     }
-    lastSetupOwnerForCell[cellKey] = ownerKey;
+    lastSetupOwnerForCell[cellKey] = cacheKey;
 
     // Only remove Theta-owned controls — never strip Instagram's UIButtons.
     for (UIView *subview in [self.subviews copy]) {
@@ -1481,14 +1566,19 @@ static void downloadStoryMedia(id self) {
         
         NSArray *originalImageVersions = nil;
         @try { originalImageVersions = [photo valueForKey:@"_originalImageVersions"]; } @catch (__unused NSException *e) {}
-        if (!originalImageVersions || originalImageVersions.count == 0) {
+        if (![originalImageVersions isKindOfClass:[NSArray class]] || originalImageVersions.count == 0) {
+            @try { originalImageVersions = [photo valueForKey:@"imageVersions"]; } @catch (__unused NSException *e) {}
+        }
+        if (![originalImageVersions isKindOfClass:[NSArray class]] || originalImageVersions.count == 0) {
+            @try { originalImageVersions = [photo valueForKey:@"_imageVersions"]; } @catch (__unused NSException *e) {}
+        }
+        if (![originalImageVersions isKindOfClass:[NSArray class]] || originalImageVersions.count == 0) {
             NSLog(@"No image versions found for story download");
             return;
         }
         
-        id photoURL = [originalImageVersions lastObject];
-        NSURL *url = nil;
-        @try { url = [photoURL valueForKey:@"url"]; } @catch (__unused NSException *e) {}
+        id bestCand = thetaStoryBestCandidate(originalImageVersions);
+        NSURL *url = thetaStoryURLFromCandidate(bestCand);
         if (!url) {
             NSLog(@"No URL found for story download");
             return;

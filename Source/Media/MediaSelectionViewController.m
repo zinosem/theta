@@ -1663,6 +1663,7 @@ static void * const playerKey = &playerKey;
                 
                 // Detect video encoding
                 AVAsset *videoAsset = [AVAsset assetWithURL:[NSURL fileURLWithPath:videoPath]];
+                ThetaAVAssetLoadKeys(videoAsset);
                 NSArray<AVAssetTrack *> *videoTracks = [videoAsset tracksWithMediaType:AVMediaTypeVideo];
                 BOOL isAV1Video = NO;
                 
@@ -1755,11 +1756,13 @@ static void * const playerKey = &playerKey;
                     AVMutableComposition *composition = [AVMutableComposition composition];
                     AVMutableCompositionTrack *compositionVideoTrack = [composition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
                     
+                    ThetaAVAssetLoadKeys(videoAsset);
                     AVAssetTrack *videoTrackForMerge = [[videoAsset tracksWithMediaType:AVMediaTypeVideo] firstObject];
                     AVAsset *audioAssetForMerge = nil;
                     AVAssetTrack *audioTrackForMerge = nil;
                     if (hasAudio && audioPath && [fm fileExistsAtPath:audioPath]) {
                         audioAssetForMerge = [AVAsset assetWithURL:[NSURL fileURLWithPath:audioPath]];
+                        ThetaAVAssetLoadKeys(audioAssetForMerge);
                         audioTrackForMerge = [[audioAssetForMerge tracksWithMediaType:AVMediaTypeAudio] firstObject];
                     }
                     if (!audioTrackForMerge) {
@@ -1837,6 +1840,7 @@ static void * const playerKey = &playerKey;
                     
                     if (exportSession.status == AVAssetExportSessionStatusCompleted) {
                         AVAsset *mergedAsset = [AVAsset assetWithURL:[NSURL fileURLWithPath:outputPath]];
+                        ThetaAVAssetLoadKeys(mergedAsset);
                         if ([mergedAsset tracksWithMediaType:AVMediaTypeAudio].count == 0 && [[videoAsset tracksWithMediaType:AVMediaTypeAudio] count] > 0) {
                             [fm removeItemAtPath:outputPath error:nil];
                             [fm copyItemAtPath:videoPath toPath:outputPath error:nil];

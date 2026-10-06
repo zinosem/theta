@@ -146,27 +146,42 @@ static void hook_saveNoteAudio(id self, SEL _cmd) {
                                                                 }
                                                                 
                                                                 // Determine file extension based on URL or audio format
-                                                                NSString *extension = @"aac"; // Default to AAC
+                                                                NSString *extension = @"m4a"; // Default to M4A for ISO-BMFF / AAC audio
                                                                 NSString *urlString = audioURL.lowercaseString;
                                                                 
-                                                                if ([urlString containsString:@"mp3"] || [urlString containsString:@"mpeg"]) {
+                                                                BOOL isMP4 = NO;
+                                                                BOOL isADTS = NO;
+                                                                BOOL isMP3 = NO;
+
+                                                                // Inspect data headers
+                                                                if (data.length >= 8) {
+                                                                    const unsigned char *bytes = (const unsigned char *)[data bytes];
+                                                                    isMP4 = (bytes[4] == 'f' && bytes[5] == 't' && bytes[6] == 'y' && bytes[7] == 'p') ||
+                                                                            (bytes[4] == 's' && bytes[5] == 't' && bytes[6] == 'y' && bytes[7] == 'p') ||
+                                                                            (bytes[4] == 'm' && bytes[5] == 'o' && bytes[6] == 'o' && (bytes[7] == 'v' || bytes[7] == 'f'));
+                                                                    isADTS = (bytes[0] == 0xFF && (bytes[1] & 0xF0) == 0xF0);
+                                                                    isMP3 = ((bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0) ||
+                                                                             (bytes[0] == 'I' && bytes[1] == 'D' && bytes[2] == '3'));
+                                                                } else if (data.length >= 4) {
+                                                                    const unsigned char *bytes = (const unsigned char *)[data bytes];
+                                                                    isMP3 = ((bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0) ||
+                                                                             (bytes[0] == 'I' && bytes[1] == 'D' && bytes[2] == '3'));
+                                                                }
+
+                                                                if (isMP4) {
+                                                                    extension = @"m4a";
+                                                                } else if (isMP3) {
                                                                     extension = @"mp3";
-                                                                } else if ([urlString containsString:@"aac"] || [urlString containsString:@"mp4a"]) {
+                                                                } else if (isADTS) {
+                                                                    extension = @"aac";
+                                                                } else if ([urlString containsString:@"mp3"] || [urlString containsString:@"mpeg"]) {
+                                                                    extension = @"mp3";
+                                                                } else if ([urlString containsString:@"mp4a"] || [urlString containsString:@"m4a"]) {
+                                                                    extension = @"m4a";
+                                                                } else if ([urlString containsString:@"aac"]) {
                                                                     extension = @"aac";
                                                                 } else {
-                                                                    // Try to detect format from data headers
-                                                                    const unsigned char *bytes = (const unsigned char *)[data bytes];
-                                                                    if (data.length >= 4) {
-                                                                        // Check for MP3 header (ID3 tag or frame sync)
-                                                                        if ((bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0) || // MPEG frame sync
-                                                                            (bytes[0] == 'I' && bytes[1] == 'D' && bytes[2] == '3')) { // ID3 tag
-                                                                            extension = @"mp3";
-                                                                        }
-                                                                        // AAC files often start with specific patterns
-                                                                        else if (data.length >= 7 && bytes[0] == 0xFF && (bytes[1] & 0xF0) == 0xF0) {
-                                                                            extension = @"aac";
-                                                                        }
-                                                                    }
+                                                                    extension = @"m4a";
                                                                 }
                                                                 
                                                                 // Generate filename with timestamp
@@ -184,8 +199,15 @@ static void hook_saveNoteAudio(id self, SEL _cmd) {
                                                                         if (replyToUserIvar) {
                                                                             id replyToUser = object_getIvar(nearestVC, replyToUserIvar);
                                                                             if (replyToUser) {
-                                                                                NSString *userName = [replyToUser performSelector:@selector(name)];
-                                                                                if (userName && userName.length > 0) {
+                                                                                NSString *userName = nil;
+                                                                                if ([replyToUser respondsToSelector:@selector(name)]) {
+                                                                                    userName = [replyToUser performSelector:@selector(name)];
+                                                                                } else if ([replyToUser respondsToSelector:@selector(username)]) {
+                                                                                    userName = [replyToUser performSelector:@selector(username)];
+                                                                                } else {
+                                                                                    userName = ThetaValueForKey(replyToUser, @"username") ?: ThetaValueForKey(replyToUser, @"name");
+                                                                                }
+                                                                                if (userName && [userName isKindOfClass:[NSString class]] && userName.length > 0) {
                                                                                     userFolderName = userName;
                                                                                 }
                                                                             }
