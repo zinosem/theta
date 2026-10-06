@@ -13,9 +13,9 @@
 + (void)showToastWithTitle:(NSString *)title subtitle:(NSString *)subtitle icon:(UIImage *)icon autoHide:(int)seconds openURL:(NSURL *)openURL;
 + (void)showLoadToast:(NSString *)title subtitle:(NSString *)subtitle icon:(UIImage *)icon autoHide:(int)seconds openURL:(NSURL *)openURL;
 /// Presents Instagram's native confirmation toast with custom title, subtitle, and optional image. Pass nil for subtitle or image as needed.
-void ThetaShowNativeToast(NSString *title, NSString * _Nullable subtitle, UIImage * _Nullable image);
+FOUNDATION_EXPORT void ThetaShowNativeToast(NSString *title, NSString * _Nullable subtitle, UIImage * _Nullable image);
 /// Same as ThetaShowNativeToast but uses an emoji as the thumbnail (via ThetaHelper imageFromEmojiString). Pass nil for emojiString for text-only.
-void ThetaShowNativeToastWithEmoji(NSString *title, NSString * _Nullable subtitle, NSString * _Nullable emojiString, CGFloat width);
+FOUNDATION_EXPORT void ThetaShowNativeToastWithEmoji(NSString *title, NSString * _Nullable subtitle, NSString * _Nullable emojiString, CGFloat width);
 
 #pragma mark - Haptic Feedback
 + (void)performHapticFeedbackIfEnabled;
@@ -47,7 +47,7 @@ void ThetaShowNativeToastWithEmoji(NSString *title, NSString * _Nullable subtitl
 
 @end
 
-NSURL *theta_bestVideoURLFromVideo(id video);
+FOUNDATION_EXPORT NSURL *theta_bestVideoURLFromVideo(id video);
 
 @interface ThetaFloatingMediaButton : UIButton
 + (instancetype)buttonWithSystemImage:(NSString *)systemImageName tintColor:(UIColor *)tintColor;
