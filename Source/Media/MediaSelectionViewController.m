@@ -1027,7 +1027,7 @@ static void * const playerKey = &playerKey;
         PHAuthorizationStatus status = [PHPhotoLibrary authorizationStatus];
         if (status == PHAuthorizationStatusNotDetermined) {
             [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus authorizationStatus) {
-                if (authorizationStatus == PHAuthorizationStatusAuthorized) {
+                if (authorizationStatus == PHAuthorizationStatusAuthorized || authorizationStatus == PHAuthorizationStatusLimited) {
                     [self performDownloadWithURL:url completion:completion];
                 } else {
                     dispatch_async(dispatch_get_main_queue(), ^{
@@ -1040,7 +1040,7 @@ static void * const playerKey = &playerKey;
                     }
                 }
             }];
-        } else if (status == PHAuthorizationStatusAuthorized) {
+        } else if (status == PHAuthorizationStatusAuthorized || status == PHAuthorizationStatusLimited) {
             [self performDownloadWithURL:url completion:completion];
         } else {
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -1174,7 +1174,7 @@ static void * const playerKey = &playerKey;
                     PHAuthorizationStatus status = [PHPhotoLibrary authorizationStatus];
                     if (status == PHAuthorizationStatusNotDetermined) {
                         [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus newStatus) {
-                            if (newStatus == PHAuthorizationStatusAuthorized) {
+                            if (newStatus == PHAuthorizationStatusAuthorized || newStatus == PHAuthorizationStatusLimited) {
                                 [self saveMediaToPhotoLibrary:permanentFilePath fileExtension:fileExtension completion:completion];
                             } else {
                                 NSLog(@"Photo library permission denied");
@@ -1189,7 +1189,7 @@ static void * const playerKey = &playerKey;
                                 }
                             }
                         }];
-                    } else if (status == PHAuthorizationStatusAuthorized) {
+                    } else if (status == PHAuthorizationStatusAuthorized || status == PHAuthorizationStatusLimited) {
                         [self saveMediaToPhotoLibrary:permanentFilePath fileExtension:fileExtension completion:completion];
                     } else {
                         NSLog(@"Photo library permission denied");

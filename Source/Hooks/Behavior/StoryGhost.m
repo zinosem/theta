@@ -1534,7 +1534,7 @@ static void downloadStoryMedia(id self) {
             PHAuthorizationStatus status = [PHPhotoLibrary authorizationStatus];
             if (status == PHAuthorizationStatusNotDetermined) {
                 [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus authorizationStatus) {
-                    if (authorizationStatus == PHAuthorizationStatusAuthorized) {
+                    if (authorizationStatus == PHAuthorizationStatusAuthorized || authorizationStatus == PHAuthorizationStatusLimited) {
                         performStoryDownloadWithURL(url);
                     } else {
                         dispatch_async(dispatch_get_main_queue(), ^{
@@ -1544,7 +1544,7 @@ static void downloadStoryMedia(id self) {
                         });
                     }
                 }];
-            } else if (status == PHAuthorizationStatusAuthorized) {
+            } else if (status == PHAuthorizationStatusAuthorized || status == PHAuthorizationStatusLimited) {
                 performStoryDownloadWithURL(url);
             } else {
                 dispatch_async(dispatch_get_main_queue(), ^{

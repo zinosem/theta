@@ -94,15 +94,17 @@ static void hook_visualmsgghostbuttons(IGDirectVisualMessageViewerController *se
         if (hideSeenState) {
             __weak typeof(self) weakSelf = self;
             [seenButton addAction:[UIAction actionWithHandler:^(UIAction *action) {
-                UIView *containView = [self valueForKey:@"_viewerContainerView"];
+                __strong typeof(weakSelf) strongSelf = weakSelf;
+                if (!strongSelf) return;
+                UIView *containView = [strongSelf valueForKey:@"_viewerContainerView"];
                 UIView *medView = [containView valueForKey:@"mediaView"];
                 if ([medView isKindOfClass:NSClassFromString(@"IGStoryModernVideoView")]) {
-                    [self performSelector:@selector(storyPlayerMediaViewDidPlay:) withObject:medView];
+                    [strongSelf performSelector:@selector(storyPlayerMediaViewDidPlay:) withObject:medView];
                     videoPlayed = YES;
                 }
 
                 if ([medView isKindOfClass:NSClassFromString(@"IGStoryPhotoView")]) {
-                    [self storyPlayerMediaViewDidLoad:medView loadSource:0 networkRequestSummary:0];
+                    [strongSelf storyPlayerMediaViewDidLoad:medView loadSource:0 networkRequestSummary:0];
                     videoPlayed = YES;
                 }
 
@@ -115,7 +117,9 @@ static void hook_visualmsgghostbuttons(IGDirectVisualMessageViewerController *se
         if (downloadVideos) {
             __weak typeof(self) weakSelf = self;
             [downloadButton addAction:[UIAction actionWithHandler:^(UIAction *action) {
-                id initialVisualMessage = [self valueForKey:@"_initialVisualMessage"];
+                __strong typeof(weakSelf) strongSelf = weakSelf;
+                if (!strongSelf) return;
+                id initialVisualMessage = [strongSelf valueForKey:@"_initialVisualMessage"];
                 id visualMediaInfo = [initialVisualMessage valueForKey:@"_visualMediaInfo"];
                 id media = [visualMediaInfo valueForKey:@"media"];
                 if ([media valueForKey:@"_video_video"]) {

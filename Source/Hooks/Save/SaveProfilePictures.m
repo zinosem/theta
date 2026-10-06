@@ -79,7 +79,7 @@ static void hook_saveProfilePictures(id self, SEL _cmd) {
 								PHAuthorizationStatus status = [PHPhotoLibrary authorizationStatus];
 								if (status == PHAuthorizationStatusNotDetermined) {
 									[PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus authorizationStatus) {
-										if (authorizationStatus == PHAuthorizationStatusAuthorized) {
+										if (authorizationStatus == PHAuthorizationStatusAuthorized || authorizationStatus == PHAuthorizationStatusLimited) {
 											performProfilePictureDownloadWithURL(imageURL);
 										} else {
 											dispatch_async(dispatch_get_main_queue(), ^{
@@ -89,7 +89,7 @@ static void hook_saveProfilePictures(id self, SEL _cmd) {
 											});
 										}
 									}];
-								} else if (status == PHAuthorizationStatusAuthorized) {
+								} else if (status == PHAuthorizationStatusAuthorized || status == PHAuthorizationStatusLimited) {
 									performProfilePictureDownloadWithURL(imageURL);
 								} else {
 									dispatch_async(dispatch_get_main_queue(), ^{
