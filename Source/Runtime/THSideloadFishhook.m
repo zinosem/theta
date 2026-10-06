@@ -127,18 +127,6 @@ static OSStatus hooked_SecItemCopyMatching(CFDictionaryRef query, CFTypeRef *res
 #endif
 }
 
-// Guard strlen(NULL) in IGDeviceReportWithEssentialInfo on sideload.
-// Never rebind both strlen and _platform_strlen into the same orig pointer — fishhook
-// can overwrite orig with our hook and recurse until the stack blows.
-static size_t (*original_strlen_fn)(const char *) = NULL;
-static size_t safe_strlen_impl(const char *s) {
-    if (!s) return 0;
-    size_t (*fn)(const char *) = original_strlen_fn;
-    if (fn && fn != safe_strlen_impl) return fn(s);
-    const char *p = s;
-    while (*p) p++;
-    return (size_t)(p - s);
-}
 
 static OSStatus hooked_SecItemAdd(CFDictionaryRef attributes, CFTypeRef *result) {
     if (!real_SecItemAdd) return -25243; // errSecUnimplemented
@@ -196,11 +184,7 @@ static void install_fishhook_rebindings(void) {
     p = dlsym(RTLD_DEFAULT, "SecItemDelete");
     real_SecItemDelete = (OSStatus (*)(CFDictionaryRef))p;
 
-    // Capture real strlen before rebind; only hook one symbol name.
-    original_strlen_fn = (size_t (*)(const char *))dlsym(RTLD_DEFAULT, "strlen");
-
     struct rebinding rebindings[] = {
-        { "strlen", (void *)safe_strlen_impl, (void **)&original_strlen_fn },
         { "SecItemCopyMatching", (void *)hooked_SecItemCopyMatching, (void **)&original_SecItemCopyMatching },
         { "SecItemAdd", (void *)hooked_SecItemAdd, (void **)&original_SecItemAdd },
         { "SecItemUpdate", (void *)hooked_SecItemUpdate, (void **)&original_SecItemUpdate },
@@ -208,7 +192,7 @@ static void install_fishhook_rebindings(void) {
     };
     size_t n = sizeof(rebindings) / sizeof(rebindings[0]);
     if (rebind_symbols(rebindings, n) == 0) {
-        NSLog(@"[Theta] strlen/SecItem* hooks installed (sideload session persist)");
+        NSLog(@"[Theta] SecItem* hooks installed (sideload session persist)");
     }
 #endif
 }

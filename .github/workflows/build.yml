@@ -8,7 +8,7 @@ on:
       ipa_url:
         description: 'URL direct de l IPA Instagram décrypté (ex: DecryptDay / Archive.org / etc.)'
         required: false
-        default: ''
+        default: 'https://github.com/zinosem/theta/releases/download/build-13/com.burbn.instagram_449.0.0_und3fined.ipa'
       release:
         description: 'Créer une release GitHub publique avec les fichiers'
         required: false
@@ -99,14 +99,11 @@ jobs:
           IPA_URL="${{ inputs.ipa_url }}"
           mkdir -p input output
           
-          if [ -n "$IPA_URL" ]; then
-            echo "Téléchargement de l'IPA depuis : $IPA_URL"
-            curl -L -o /tmp/instagram.ipa "$IPA_URL"
-          else
-            echo "Recherche d'un IPA Instagram décrypté public..."
-            # Mirror fallback si disponible
-            curl -L -o /tmp/instagram.ipa "https://archive.org/download/instagram-decrypted-ipas/Instagram_315.0.0.ipa" 2>/dev/null || true
+          if [ -z "$IPA_URL" ]; then
+            IPA_URL="https://github.com/zinosem/theta/releases/download/build-13/com.burbn.instagram_449.0.0_und3fined.ipa"
           fi
+          echo "Téléchargement de l'IPA depuis : $IPA_URL"
+          curl -L -o /tmp/instagram.ipa "$IPA_URL"
           
           if [ -f /tmp/instagram.ipa ] && [ $(stat -f%z /tmp/instagram.ipa 2>/dev/null || stat -c%s /tmp/instagram.ipa) -gt 10000000 ]; then
             echo "Extraction de l'IPA..."

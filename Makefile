@@ -29,7 +29,6 @@ Theta_FILES = TweakCOMPILE.xm fishhook.c \
 
 Theta_FRAMEWORKS = UIKit Foundation CoreGraphics Photos CoreServices SystemConfiguration SafariServices Security QuartzCore AuthenticationServices WebKit UserNotifications AVFoundation AVKit
 Theta_LDFLAGS = -lsqlite3
-Theta_PRIVATE_FRAMEWORKS = Preferences
 
 ifneq ($(SIDELOAD),1)
 Theta_LIBRARIES += substrate

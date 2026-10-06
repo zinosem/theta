@@ -126,21 +126,21 @@ static void (*orig_sortUserPostsGrid)(id self, SEL _cmd);
 static void hook_sortUserPostsGrid(id self, SEL _cmd) {
     if (orig_sortUserPostsGrid) orig_sortUserPostsGrid(self, _cmd);
 
-    // Property access — valueForKey: can throw on some UICollectionView subclasses during layout.
-    NSString *accessibilityLabel = nil;
-    if ([self respondsToSelector:@selector(accessibilityLabel)]) {
-        accessibilityLabel = [self accessibilityLabel];
-    }
-    NSString *acc = accessibilityLabel.lowercaseString;
-    if ([acc isEqualToString:@"grid"] || [acc isEqualToString:@"grille"] || [acc isEqualToString:@"cuadrícula"] || [acc isEqualToString:@"cuadricula"] || [acc containsString:@"grid"]) {
-        NSNumber *alreadyAdded = objc_getAssociatedObject(self, &kThetaSortGridLongPressOnceKey);
-        if ([alreadyAdded boolValue]) return;
+    @try {
+        NSString *accessibilityLabel = nil;
+        if ([self respondsToSelector:@selector(accessibilityLabel)]) {
+            accessibilityLabel = [self accessibilityLabel];
+        }
+        NSString *acc = accessibilityLabel.lowercaseString;
+        if (acc && ([acc isEqualToString:@"grid"] || [acc isEqualToString:@"grille"] || [acc isEqualToString:@"cuadrícula"] || [acc isEqualToString:@"cuadricula"] || [acc containsString:@"grid"])) {
+            NSNumber *alreadyAdded = objc_getAssociatedObject(self, &kThetaSortGridLongPressOnceKey);
+            if ([alreadyAdded boolValue]) return;
 
-        UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] init];
-        longPress.minimumPressDuration = 0.5;
-        longPress.cancelsTouchesInView = NO;
-        __weak typeof(self) weakSelf = self;
-        longPress.actionBlock = ^(UIGestureRecognizer *recognizer) {
+            UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] init];
+            longPress.minimumPressDuration = 0.5;
+            longPress.cancelsTouchesInView = NO;
+            __weak typeof(self) weakSelf = self;
+            longPress.actionBlock = ^(UIGestureRecognizer *recognizer) {
             if (recognizer.state != UIGestureRecognizerStateBegan) return;
             NSNumber *lastTsNum = objc_getAssociatedObject(self, &kThetaSortLastToggleTimeKey);
             CFAbsoluteTime nowTs = CFAbsoluteTimeGetCurrent();
@@ -349,8 +349,12 @@ static void hook_sortUserPostsGrid(id self, SEL _cmd) {
 
         objc_setAssociatedObject(self, &kThetaSortGridLongPressOnceKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
+    } @catch (__unused NSException *e) {}
 }
 
 void THRegisterSortUserGridPostsHooks(void) {
-    NullHookMessageIfPresent([UICollectionView class], @selector(layoutSubviews), (void *)hook_sortUserPostsGrid, (void **)&orig_sortUserPostsGrid);
+    Class listCVClass = objc_getClass("IGListCollectionView");
+    if (listCVClass) {
+        NullHookMessageIfPresent(listCVClass, @selector(layoutSubviews), (void *)hook_sortUserPostsGrid, (void **)&orig_sortUserPostsGrid);
+    }
 }

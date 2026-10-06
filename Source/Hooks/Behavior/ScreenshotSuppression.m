@@ -27,44 +27,6 @@ static void hook_screenRecord(id self, SEL _cmd, id state) {
     }
 }
 
-// Global NSNotificationCenter suppression
-static void (*orig_NC_postNotificationName_object_userInfo)(id self, SEL _cmd, NSNotificationName aName, id anObject, NSDictionary *aUserInfo);
-static void hook_NC_postNotificationName_object_userInfo(id self, SEL _cmd, NSNotificationName aName, id anObject, NSDictionary *aUserInfo) {
-    if (ENABLED(@"Screenshot Suppression")) {
-        if ([aName isEqualToString:UIApplicationUserDidTakeScreenshotNotification] ||
-            [aName isEqualToString:UIScreenCapturedDidChangeNotification]) {
-            if (ENABLED(@"Show Banners")) {
-                static NSTimeInterval lastToastTime = 0;
-                NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
-                if (now - lastToastTime > 3.0) {
-                    lastToastTime = now;
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [ThetaHelper showToastWithTitle:@"Screenshot Suppressed"
-                                               subtitle:@"Notification blocked for other users."
-                                                   icon:[UIImage systemImageNamed:@"camera.badge.ellipsis"]
-                                               autoHide:3
-                                                openURL:nil];
-                    });
-                }
-            }
-            return;
-        }
-    }
-    if (orig_NC_postNotificationName_object_userInfo)
-        orig_NC_postNotificationName_object_userInfo(self, _cmd, aName, anObject, aUserInfo);
-}
-
-static void (*orig_NC_postNotification)(id self, SEL _cmd, NSNotification *notification);
-static void hook_NC_postNotification(id self, SEL _cmd, NSNotification *notification) {
-    if (ENABLED(@"Screenshot Suppression") && notification) {
-        if ([notification.name isEqualToString:UIApplicationUserDidTakeScreenshotNotification] ||
-            [notification.name isEqualToString:UIScreenCapturedDidChangeNotification]) {
-            return;
-        }
-    }
-    if (orig_NC_postNotification)
-        orig_NC_postNotification(self, _cmd, notification);
-}
 
 // Direct Message / Disappearing media specific handlers
 static void (*orig_DVM_didTakeScreenshot)(id self, SEL _cmd);
@@ -89,10 +51,6 @@ void THRegisterScreenshotProtectionProviderHooks(void) {
 void THRegisterScreenshotObserverHook(void) {
     NullHookMessageIfPresent(objc_getClass("IGScreenshotObserver"), @selector(_onTakenScreenshot), (void *)hook_screenshotSuppression, &orig_screenshotSuppression);
     NullHookMessageIfPresent(objc_getClass("IGScreenshotObserver"), @selector(_screenCaptureStateDidChange:), (void *)hook_screenRecord, &orig_screenRecord);
-
-    // Global interception on NSNotificationCenter
-    NullHookMessageIfPresent([NSNotificationCenter class], @selector(postNotificationName:object:userInfo:), (void *)hook_NC_postNotificationName_object_userInfo, &orig_NC_postNotificationName_object_userInfo);
-    NullHookMessageIfPresent([NSNotificationCenter class], @selector(postNotification:), (void *)hook_NC_postNotification, &orig_NC_postNotification);
 
     // Direct vanishing & visual media controllers
     Class dvmClass = objc_getClass("IGDirectVisualMessageViewerController");
