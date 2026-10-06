@@ -41,7 +41,7 @@ static void hook_hideCreateButton3(id self, SEL _cmd) {
             if ([view isKindOfClass:NSClassFromString(@"IGProfileNavigationHeaderViewButton")]) {
                 UIView *buttonView = ThetaValueForKey(view, @"_view");
                 if ([buttonView isKindOfClass:[UIView class]]) {
-                    NSString *acc = [accessibilityLabel lowercaseString];
+                    NSString *acc = [buttonView.accessibilityLabel lowercaseString];
                     if ([acc containsString:@"creation"] || [acc containsString:@"création"] || [acc containsString:@"create"]) {
                         if (buttonView.superview) {
                             [buttonView removeFromSuperview];
@@ -70,7 +70,8 @@ static id hook_hideCreateButton4(id self, SEL _cmd) {
                 // get subviews in subview (there will only be 1 UIView subview)
                 for (UIView *subview2 in subview.subviews) {
                     if ([subview2 isKindOfClass:NSClassFromString(@"IGBadgedNavigationButton")]) {
-                        if ([subview2.accessibilityLabel isEqualToString:@"Tap to open creation menu"]) {
+                        NSString *acc = [subview2.accessibilityLabel lowercaseString];
+                        if ([acc containsString:@"creation"] || [acc containsString:@"création"] || [acc containsString:@"create"]) {
                             [subview2 removeFromSuperview];
                         }
                     }
