@@ -663,98 +663,99 @@ static void saveMedia(id hostView) {
     }
 }
 
+static BOOL s_inFollowStatusLayout = NO;
 static void (*orig_followStatusIndicator)(UIView *self, SEL _cmd);
 static void hook_followStatusIndicator(UIView *self, SEL _cmd) {
     if (orig_followStatusIndicator) orig_followStatusIndicator(self, _cmd);
 
-    UIViewController *profileVC = theta_profileViewControllerFromView(self);
-    if (!profileVC) {
-        return;
-    }
+    if (s_inFollowStatusLayout) return;
+    s_inFollowStatusLayout = YES;
 
-    IGUser *user = nil;
     @try {
-        if ([profileVC respondsToSelector:@selector(user)]) {
-            user = [profileVC performSelector:@selector(user)];
-        }
-    } @catch (__unused NSException *e) {
-        return;
-    }
-    if (!user) {
-        return;
-    }
+        UIViewController *profileVC = theta_profileViewControllerFromView(self);
+        if (!profileVC) return;
 
-    id context = ThetaValueForKey(profileVC, @"_navBarContext");
-    if (!context) context = ThetaValueForKey(profileVC, @"navBarContext");
-    BOOL currentUser = context ? [ThetaValueForKey(context, @"isCurrentUser") boolValue] : NO;
-    if (currentUser) {
-        return;
-    }
-
-    BOOL doesFollow = NO;
-    @try {
-        if ([user respondsToSelector:@selector(followsCurrentUser)]) {
-            doesFollow = [user followsCurrentUser];
-        }
-    } @catch (__unused NSException *e) {}
-
-    BOOL showFollowIndicator = [[NSUserDefaults standardUserDefaults] boolForKey:@"Follow Status Indicator_Enabled"];
-    BOOL showSaveButton = [[NSUserDefaults standardUserDefaults] boolForKey:@"Save Profile Posts_Enabled"];
-
-    for (UIView *view in [self subviews]) {
-        if (![view isKindOfClass:NSClassFromString(@"IGCoreTextView")]) {
-            continue;
-        }
-
-        id styledString = ThetaValueForKey(view, @"styledString");
-        if (!styledString || ![styledString respondsToSelector:@selector(attributedString)]) {
-            continue;
-        }
-
-        NSMutableAttributedString *attributedString = [styledString attributedString];
-        if (!attributedString) {
-            attributedString = [[NSMutableAttributedString alloc] init];
-        } else if (![attributedString isKindOfClass:[NSMutableAttributedString class]]) {
-            attributedString = [[NSMutableAttributedString alloc] initWithAttributedString:attributedString];
-        }
-
-        NSString *currentString = attributedString.string ?: @"";
-        NSArray<NSString *> *indicators = @[ @" | ✅", @" | ❌", @" ✅", @" ❌" ];
-        for (NSString *indicator in indicators) {
-            NSRange range = [currentString rangeOfString:indicator options:NSBackwardsSearch];
-            if (range.location != NSNotFound && NSMaxRange(range) == currentString.length) {
-                [attributedString deleteCharactersInRange:range];
-                break;
-            }
-        }
-
-        NSString *suffix = (doesFollow ? @" | ✅" : @" | ❌");
-
-        if (showFollowIndicator) {
-            if ([styledString respondsToSelector:@selector(appendString:)]) {
-                if ([styledString respondsToSelector:@selector(setAttributedString:)]) {
-                    [styledString setAttributedString:attributedString];
-                }
-                [styledString appendString:suffix];
-            } else {
-                NSDictionary *attrs = nil;
-                if (attributedString.length > 0) {
-                    attrs = [attributedString attributesAtIndex:attributedString.length - 1 effectiveRange:NULL];
-                }
-                NSAttributedString *toAppend = attrs ? [[NSAttributedString alloc] initWithString:suffix attributes:attrs] : [[NSAttributedString alloc] initWithString:suffix];
-                [attributedString appendAttributedString:toAppend];
-                if ([styledString respondsToSelector:@selector(setAttributedString:)]) {
-                    [styledString setAttributedString:attributedString];
-                }
-            }
-        } else {
-            if ([styledString respondsToSelector:@selector(setAttributedString:)]) {
-                [styledString setAttributedString:attributedString];
-            }
-        }
-
+        IGUser *user = nil;
         @try {
-            ThetaSetValueForKey(view, styledString, @"styledString");
+            if ([profileVC respondsToSelector:@selector(user)]) {
+                user = [profileVC performSelector:@selector(user)];
+            }
+        } @catch (__unused NSException *e) {
+            return;
+        }
+        if (!user) return;
+
+        id context = ThetaValueForKey(profileVC, @"_navBarContext");
+        if (!context) context = ThetaValueForKey(profileVC, @"navBarContext");
+        BOOL currentUser = context ? [ThetaValueForKey(context, @"isCurrentUser") boolValue] : NO;
+        if (currentUser) return;
+
+        BOOL doesFollow = NO;
+        @try {
+            if ([user respondsToSelector:@selector(followsCurrentUser)]) {
+                doesFollow = [user followsCurrentUser];
+            }
+        } @catch (__unused NSException *e) {}
+
+        BOOL showFollowIndicator = [[NSUserDefaults standardUserDefaults] boolForKey:@"Follow Status Indicator_Enabled"];
+        BOOL showSaveButton = [[NSUserDefaults standardUserDefaults] boolForKey:@"Save Profile Posts_Enabled"];
+
+        for (UIView *view in [self subviews]) {
+            if (![view isKindOfClass:NSClassFromString(@"IGCoreTextView")]) {
+                continue;
+            }
+
+            id styledString = ThetaValueForKey(view, @"styledString");
+            if (!styledString || ![styledString respondsToSelector:@selector(attributedString)]) {
+                continue;
+            }
+
+            NSMutableAttributedString *attributedString = [styledString attributedString];
+            if (!attributedString) {
+                attributedString = [[NSMutableAttributedString alloc] init];
+            } else if (![attributedString isKindOfClass:[NSMutableAttributedString class]]) {
+                attributedString = [[NSMutableAttributedString alloc] initWithAttributedString:attributedString];
+            }
+
+            NSString *currentString = attributedString.string ?: @"";
+            NSString *suffix = (doesFollow ? @" | ✅" : @" | ❌");
+            BOOL alreadyHasCorrectSuffix = showFollowIndicator && [currentString hasSuffix:suffix];
+
+            if (!alreadyHasCorrectSuffix) {
+                NSArray<NSString *> *indicators = @[ @" | ✅", @" | ❌", @" ✅", @" ❌" ];
+                for (NSString *indicator in indicators) {
+                    NSRange range = [currentString rangeOfString:indicator options:NSBackwardsSearch];
+                    if (range.location != NSNotFound && NSMaxRange(range) == currentString.length) {
+                        [attributedString deleteCharactersInRange:range];
+                        break;
+                    }
+                }
+
+                if (showFollowIndicator) {
+                    if ([styledString respondsToSelector:@selector(appendString:)]) {
+                        if ([styledString respondsToSelector:@selector(setAttributedString:)]) {
+                            [styledString setAttributedString:attributedString];
+                        }
+                        [styledString appendString:suffix];
+                    } else {
+                        NSDictionary *attrs = nil;
+                        if (attributedString.length > 0) {
+                            attrs = [attributedString attributesAtIndex:attributedString.length - 1 effectiveRange:NULL];
+                        }
+                        NSAttributedString *toAppend = attrs ? [[NSAttributedString alloc] initWithString:suffix attributes:attrs] : [[NSAttributedString alloc] initWithString:suffix];
+                        [attributedString appendAttributedString:toAppend];
+                        if ([styledString respondsToSelector:@selector(setAttributedString:)]) {
+                            [styledString setAttributedString:attributedString];
+                        }
+                    }
+                } else {
+                    if ([styledString respondsToSelector:@selector(setAttributedString:)]) {
+                        [styledString setAttributedString:attributedString];
+                    }
+                }
+
+                ThetaSetValueForKey(view, styledString, @"styledString");
+            }
 
             UIButton *saveButton = nil;
             for (UIView *sub in [self subviews]) {
@@ -785,7 +786,6 @@ static void hook_followStatusIndicator(UIView *self, SEL _cmd) {
                     ThetaSetCaptureHiding(saveButton);
                     [self addSubview:saveButton];
                 } else {
-                    // Keep hostView fresh across layout passes
                     ThetaSaveMediaButtonTarget *target = objc_getAssociatedObject(saveButton, @selector(onTap:));
                     if ([target isKindOfClass:[ThetaSaveMediaButtonTarget class]]) {
                         target.hostView = self;
@@ -804,21 +804,20 @@ static void hook_followStatusIndicator(UIView *self, SEL _cmd) {
                 if (CGRectGetMaxX(btnFrame) > maxX) {
                     btnFrame.origin.x = maxX - btnFrame.size.width;
                 }
-                // Keep inside parent bounds so hit-testing works
                 if (btnFrame.origin.x < 0) btnFrame.origin.x = 0;
                 if (btnFrame.origin.y < 0) btnFrame.origin.y = 0;
-                saveButton.frame = btnFrame;
+                if (!CGRectEqualToRect(saveButton.frame, btnFrame)) {
+                    saveButton.frame = btnFrame;
+                }
                 saveButton.hidden = NO;
-                [self bringSubviewToFront:saveButton];
             } else if (saveButton) {
                 [saveButton removeFromSuperview];
             }
-
-            [view setNeedsLayout];
-            [view setNeedsDisplay];
-        } @catch (NSException *exception) {
-            NSLog(@"[Theta] FollowStatusIndicator: %@", exception);
         }
+    } @catch (NSException *exception) {
+        NSLog(@"[Theta] FollowStatusIndicator: %@", exception);
+    } @finally {
+        s_inFollowStatusLayout = NO;
     }
 }
 
