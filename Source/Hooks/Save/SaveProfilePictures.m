@@ -117,8 +117,7 @@ static void hook_saveProfilePictures(id self, SEL _cmd) {
 					@try {
 						if (imageURL) {
 							dispatch_async(dispatch_get_main_queue(), ^{
-								MediaViewController *mediaVC = [MediaViewController new];
-								[mediaVC initWithMediaURL:imageURL];
+								MediaViewController *mediaVC = [[MediaViewController alloc] initWithMediaURL:imageURL];
 								mediaVC.modalPresentationStyle = UIModalPresentationFullScreen;
 								[[ThetaHelper topViewController] presentViewController:mediaVC animated:YES completion:nil];
 							});

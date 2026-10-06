@@ -47,6 +47,8 @@ void ThetaShowNativeToastWithEmoji(NSString *title, NSString * _Nullable subtitl
 
 @end
 
+NSURL *theta_bestVideoURLFromVideo(id video);
+
 @interface ThetaFloatingMediaButton : UIButton
 + (instancetype)buttonWithSystemImage:(NSString *)systemImageName tintColor:(UIColor *)tintColor;
 + (instancetype)buttonWithImage:(UIImage *)image tintColor:(UIColor *)tintColor;

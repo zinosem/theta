@@ -355,4 +355,51 @@ static volatile BOOL sGlobalDownloadInProgress = NO;
     }
 }
 
-@end 
+@end
+
+static NSURL *theta_helperURLFromCandidate(id cand) {
+    if (!cand) return nil;
+    if ([cand isKindOfClass:[NSURL class]]) return ((NSURL *)cand).scheme.length ? (NSURL *)cand : nil;
+    if ([cand isKindOfClass:[NSString class]]) {
+        NSURL *u = [NSURL URLWithString:(NSString *)cand];
+        return u.scheme.length ? u : nil;
+    }
+    for (NSString *key in @[ @"url", @"URL", @"videoURL", @"videoUrl", @"uri", @"src" ]) {
+        @try {
+            id url = [cand valueForKey:key];
+            if ([url isKindOfClass:[NSURL class]] && [(NSURL *)url scheme].length) return url;
+            if ([url isKindOfClass:[NSString class]]) {
+                NSURL *u = [NSURL URLWithString:(NSString *)url];
+                if (u.scheme.length) return u;
+            }
+        } @catch (__unused NSException *e) {}
+    }
+    return nil;
+}
+
+NSURL *theta_bestVideoURLFromVideo(id video) {
+    if (!video) return nil;
+    if ([video respondsToSelector:@selector(allVideoURLs)]) {
+        id set = nil;
+        @try { set = [video performSelector:@selector(allVideoURLs)]; } @catch (__unused NSException *e) {}
+        if ([set isKindOfClass:[NSSet class]]) {
+            for (id cand in (NSSet *)set) {
+                NSURL *u = theta_helperURLFromCandidate(cand);
+                if (u) return u;
+            }
+        } else if ([set isKindOfClass:[NSArray class]]) {
+            for (id cand in [(NSArray *)set reverseObjectEnumerator]) {
+                NSURL *u = theta_helperURLFromCandidate(cand);
+                if (u) return u;
+            }
+        }
+    }
+    for (NSString *key in @[ @"videoUrl", @"videoURL", @"url", @"_url" ]) {
+        @try {
+            id val = [video valueForKey:key];
+            NSURL *u = theta_helperURLFromCandidate(val);
+            if (u) return u;
+        } @catch (__unused NSException *e) {}
+    }
+    return nil;
+}

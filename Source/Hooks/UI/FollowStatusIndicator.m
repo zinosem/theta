@@ -335,30 +335,6 @@ static id theta_videoFromObject(id obj) {
     return video;
 }
 
-static NSURL *theta_bestVideoURLFromVideo(id video) {
-    if (!video) return nil;
-    if ([video respondsToSelector:@selector(allVideoURLs)]) {
-        id set = nil;
-        @try { set = [video performSelector:@selector(allVideoURLs)]; } @catch (__unused NSException *e) {}
-        if ([set isKindOfClass:[NSSet class]]) {
-            for (id cand in (NSSet *)set) {
-                NSURL *u = theta_urlFromCandidate(cand);
-                if (u) return u;
-            }
-        } else if ([set isKindOfClass:[NSArray class]]) {
-            for (id cand in [(NSArray *)set reverseObjectEnumerator]) {
-                NSURL *u = theta_urlFromCandidate(cand);
-                if (u) return u;
-            }
-        }
-    }
-    for (NSString *key in @[ @"videoUrl", @"videoURL", @"url", @"_url" ]) {
-        NSURL *u = theta_urlFromCandidate(ThetaValueForKey(video, key));
-        if (u) return u;
-    }
-    return nil;
-}
-
 static NSInteger theta_mediaTypeOfObject(id obj) {
     if (!obj) return -1;
     // Prefer explicit item/media enums. Avoid bare `mediaType` first — on some objects it is not an NSInteger.
