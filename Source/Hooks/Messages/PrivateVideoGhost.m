@@ -13,39 +13,25 @@ static void hook_visualmsgghostbuttons(IGDirectVisualMessageViewerController *se
         return;
     }
     
-    UIButton *downloadButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    UIColor *downloadColor = [UIColor whiteColor];
     @try {
         NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"Save Button Color_Color"];
         UIColor *color = [NSKeyedUnarchiver unarchivedObjectOfClass:[UIColor class] fromData:data error:nil];
-        [downloadButton setTintColor:color ?: [UIColor labelColor]];
-    } @catch (NSException *exception) {
-        NSLog(@"Error setting download button color: %@", exception);
-        [downloadButton setTintColor:[UIColor labelColor]];
-    }
-    [downloadButton setImage:[UIImage systemImageNamed:@"arrow.down"] forState:UIControlStateNormal];
-    downloadButton.layer.shadowColor = [UIColor blackColor].CGColor;
-    downloadButton.layer.shadowOpacity = 0.4;
-    downloadButton.layer.shadowOffset = CGSizeMake(-2, 0);
-    downloadButton.layer.shadowRadius = 3;
-    downloadButton.layer.masksToBounds = NO;
-    [downloadButton setTranslatesAutoresizingMaskIntoConstraints:false];
+        if (color) downloadColor = color;
+    } @catch (__unused NSException *exception) {}
 
-    UIButton *seenButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    UIButton *downloadButton = [ThetaFloatingMediaButton buttonWithSystemImage:@"arrow.down" tintColor:downloadColor];
+    downloadButton.tag = 77001;
+
+    UIColor *seenColor = [UIColor whiteColor];
     @try {
         NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"Seen Button Color_Color"];
         UIColor *color = [NSKeyedUnarchiver unarchivedObjectOfClass:[UIColor class] fromData:data error:nil];
-        [seenButton setTintColor:color ?: [UIColor labelColor]];
-    } @catch (NSException *exception) {
-        NSLog(@"Error setting seen button color: %@", exception);
-        [seenButton setTintColor:[UIColor labelColor]];
-    }
-    [seenButton setImage:[UIImage systemImageNamed:@"eye"] forState:UIControlStateNormal];
-    seenButton.layer.shadowColor = [UIColor blackColor].CGColor;
-    seenButton.layer.shadowOpacity = 0.4;
-    seenButton.layer.shadowOffset = CGSizeMake(-2, 0);
-    seenButton.layer.shadowRadius = 3;
-    seenButton.layer.masksToBounds = NO;
-    [seenButton setTranslatesAutoresizingMaskIntoConstraints:false];
+        if (color) seenColor = color;
+    } @catch (__unused NSException *exception) {}
+
+    UIButton *seenButton = [ThetaFloatingMediaButton buttonWithSystemImage:@"eye" tintColor:seenColor];
+    seenButton.tag = 77002;
 
     BOOL downloadVideos = ENABLED(@"Save Media");
     BOOL hideSeenState = ENABLED(@"Private Media Ghost");
@@ -56,38 +42,42 @@ static void hook_visualmsgghostbuttons(IGDirectVisualMessageViewerController *se
     @try {
         if (downloadVideos && !hideSeenState) {
             [containerView addSubview:downloadButton];
+            [containerView bringSubviewToFront:downloadButton];
             [NSLayoutConstraint activateConstraints:@[
                 [downloadButton.bottomAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.bottomAnchor constant:-116],
-                [downloadButton.trailingAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.trailingAnchor constant:-8],
-                [downloadButton.widthAnchor constraintEqualToConstant:30],
-                [downloadButton.heightAnchor constraintEqualToConstant:30]
+                [downloadButton.trailingAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.trailingAnchor constant:-14],
+                [downloadButton.widthAnchor constraintEqualToConstant:38],
+                [downloadButton.heightAnchor constraintEqualToConstant:38]
             ]];
         }
 
         if (!downloadVideos && hideSeenState) {
             [containerView addSubview:seenButton];
+            [containerView bringSubviewToFront:seenButton];
             [NSLayoutConstraint activateConstraints:@[
                 [seenButton.bottomAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.bottomAnchor constant:-116],
-                [seenButton.trailingAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.trailingAnchor constant:-8],
-                [seenButton.widthAnchor constraintEqualToConstant:30],
-                [seenButton.heightAnchor constraintEqualToConstant:30]
+                [seenButton.trailingAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.trailingAnchor constant:-14],
+                [seenButton.widthAnchor constraintEqualToConstant:38],
+                [seenButton.heightAnchor constraintEqualToConstant:38]
             ]];
         }
 
         if (downloadVideos && hideSeenState) {
             [containerView addSubview:downloadButton];
             [containerView addSubview:seenButton];
+            [containerView bringSubviewToFront:downloadButton];
+            [containerView bringSubviewToFront:seenButton];
             [NSLayoutConstraint activateConstraints:@[
                 [downloadButton.bottomAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.bottomAnchor constant:-116],
-                [downloadButton.trailingAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.trailingAnchor constant:-8],
-                [downloadButton.widthAnchor constraintEqualToConstant:30],
-                [downloadButton.heightAnchor constraintEqualToConstant:30]
+                [downloadButton.trailingAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.trailingAnchor constant:-14],
+                [downloadButton.widthAnchor constraintEqualToConstant:38],
+                [downloadButton.heightAnchor constraintEqualToConstant:38]
             ]];
             [NSLayoutConstraint activateConstraints:@[
-                [seenButton.bottomAnchor constraintEqualToAnchor:downloadButton.topAnchor constant:-20],
-                [seenButton.trailingAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.trailingAnchor constant:-8],
-                [seenButton.widthAnchor constraintEqualToConstant:30],
-                [seenButton.heightAnchor constraintEqualToConstant:30]
+                [seenButton.bottomAnchor constraintEqualToAnchor:downloadButton.topAnchor constant:-16],
+                [seenButton.trailingAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.trailingAnchor constant:-14],
+                [seenButton.widthAnchor constraintEqualToConstant:38],
+                [seenButton.heightAnchor constraintEqualToConstant:38]
             ]];
         }
 
@@ -181,8 +171,25 @@ static void hook_visualmsgghostphoto(id self, SEL _cmd, id arg1, id arg2, id arg
     }
 }
 
+static void (*orig_visualmsgghost_layoutSubviews)(IGDirectVisualMessageViewerController *self, SEL _cmd);
+static void hook_visualmsgghost_layoutSubviews(IGDirectVisualMessageViewerController *self, SEL _cmd) {
+    if (orig_visualmsgghost_layoutSubviews) {
+        orig_visualmsgghost_layoutSubviews(self, _cmd);
+    }
+    @try {
+        UIView *containerView = [self valueForKey:@"view"];
+        if (containerView) {
+            UIView *b1 = [containerView viewWithTag:77001];
+            if (b1) [containerView bringSubviewToFront:b1];
+            UIView *b2 = [containerView viewWithTag:77002];
+            if (b2) [containerView bringSubviewToFront:b2];
+        }
+    } @catch (__unused NSException *e) {}
+}
+
 void THRegisterPrivateVideoGhostHooks(void) {
     NullHookMessageEx(objc_getClass("IGDirectVisualMessageViewerController"), @selector(viewDidLoad), (void *)hook_visualmsgghostbuttons, &orig_visualmsgghostbuttons);
+    NullHookMessageEx(objc_getClass("IGDirectVisualMessageViewerController"), @selector(viewDidLayoutSubviews), (void *)hook_visualmsgghost_layoutSubviews, &orig_visualmsgghost_layoutSubviews);
     NullHookMessageEx(objc_getClass("IGDirectVisualMessageViewerController"), @selector(storyPlayerMediaViewDidPlay:), (void *)hook_visualmsgghostvideo, &orig_visualmsgghostvideo);
     NullHookMessageEx(objc_getClass("IGStoryPhotoView"), @selector(progressImageView:didLoadImage:loadSource:networkRequestSummary:), (void *)hook_visualmsgghostphoto, &orig_visualmsgghostphoto);
 }

@@ -1095,61 +1095,35 @@ static void setupButtons(IGStoryFullscreenCell *self) {
         }
     }
 
-    UIButton *downloadButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    downloadButton.tag = kThetaStoryButtonTag;
+    UIColor *downloadColor = [UIColor whiteColor];
     @try {
         NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"Save Button Color_Color"];
         UIColor *color = [NSKeyedUnarchiver unarchivedObjectOfClass:[UIColor class] fromData:data error:nil];
-        [downloadButton setTintColor:color ?: [UIColor labelColor]];
-    } @catch (NSException *exception) {
-        NSLog(@"Error setting download button color: %@", exception);
-        [downloadButton setTintColor:[UIColor labelColor]];
-    }
-    [downloadButton setImage:[UIImage systemImageNamed:@"arrow.down"] forState:UIControlStateNormal];
-    downloadButton.layer.shadowColor = [UIColor blackColor].CGColor;
-    downloadButton.layer.shadowOpacity = 0.4;
-    downloadButton.layer.shadowOffset = CGSizeMake(-2, 0);
-    downloadButton.layer.shadowRadius = 3;
-    downloadButton.layer.masksToBounds = NO;
-    [downloadButton setTranslatesAutoresizingMaskIntoConstraints:false];
+        if (color) downloadColor = color;
+    } @catch (__unused NSException *exception) {}
+    UIButton *downloadButton = [ThetaFloatingMediaButton buttonWithSystemImage:@"arrow.down" tintColor:downloadColor];
+    downloadButton.tag = kThetaStoryButtonTag;
 
-    UIButton *seenButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    UIColor *seenColor = [UIColor whiteColor];
+    @try {
+        NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"Seen Button Color_Color"];
+        UIColor *color = [NSKeyedUnarchiver unarchivedObjectOfClass:[UIColor class] fromData:data error:nil];
+        if (color) seenColor = color;
+    } @catch (__unused NSException *exception) {}
+    UIButton *seenButton = [ThetaFloatingMediaButton buttonWithSystemImage:@"eye" tintColor:seenColor];
     seenButton.tag = kThetaStoryButtonTag;
-    @try {
-        NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"Seen Button Color_Color"];
-        UIColor *color = [NSKeyedUnarchiver unarchivedObjectOfClass:[UIColor class] fromData:data error:nil];
-        [seenButton setTintColor:color ?: [UIColor labelColor]];
-    } @catch (NSException *exception) {
-        NSLog(@"Error setting seen button color: %@", exception);
-        [seenButton setTintColor:[UIColor labelColor]];
-    }
-    [seenButton setImage:[UIImage systemImageNamed:@"eye"] forState:UIControlStateNormal];
-    seenButton.layer.shadowColor = [UIColor blackColor].CGColor;
-    seenButton.layer.shadowOpacity = 0.4;
-    seenButton.layer.shadowOffset = CGSizeMake(-2, 0);
-    seenButton.layer.shadowRadius = 3;
-    seenButton.layer.masksToBounds = NO;
-    [seenButton setTranslatesAutoresizingMaskIntoConstraints:false];
 
-    UIButton *localSeenButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    localSeenButton.tag = kThetaStoryButtonTag;
+    UIColor *localColor = [UIColor whiteColor];
     @try {
         NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"Seen Button Color_Color"];
         UIColor *color = [NSKeyedUnarchiver unarchivedObjectOfClass:[UIColor class] fromData:data error:nil];
-        [localSeenButton setTintColor:color ?: [UIColor labelColor]];
-    } @catch (NSException *exception) {
-        [localSeenButton setTintColor:[UIColor labelColor]];
-    }
+        if (color) localColor = color;
+    } @catch (__unused NSException *exception) {}
     UIImage *localIcon = [UIImage systemImageNamed:@"iphone"];
     if (!localIcon) localIcon = [UIImage systemImageNamed:@"iphone.circle"];
     if (!localIcon) localIcon = [UIImage systemImageNamed:@"internaldrive"];
-    [localSeenButton setImage:localIcon forState:UIControlStateNormal];
-    localSeenButton.layer.shadowColor = [UIColor blackColor].CGColor;
-    localSeenButton.layer.shadowOpacity = 0.4;
-    localSeenButton.layer.shadowOffset = CGSizeMake(-2, 0);
-    localSeenButton.layer.shadowRadius = 3;
-    localSeenButton.layer.masksToBounds = NO;
-    [localSeenButton setTranslatesAutoresizingMaskIntoConstraints:false];
+    UIButton *localSeenButton = [ThetaFloatingMediaButton buttonWithImage:localIcon tintColor:localColor];
+    localSeenButton.tag = kThetaStoryButtonTag;
 
     BOOL downloadVideos = ENABLED(@"Save Media");
     BOOL hideSeenState = ENABLED(@"Story Ghost");
@@ -1162,29 +1136,20 @@ static void setupButtons(IGStoryFullscreenCell *self) {
     } @catch (__unused NSException *e) {}
     NSInteger itemCount = [items isKindOfClass:[NSArray class]] ? items.count : 0;
 
-    UIButton *mentionsButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    mentionsButton.tag = kThetaStoryButtonTag;
+    UIColor *mentionsColor = [UIColor whiteColor];
     @try {
         NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"Mentions Button Color_Color"];
         UIColor *color = [NSKeyedUnarchiver unarchivedObjectOfClass:[UIColor class] fromData:data error:nil];
-        [mentionsButton setTintColor:color ?: [UIColor labelColor]];
-    } @catch (NSException *exception) {
-        NSLog(@"Error setting mentions button color: %@", exception);
-        [mentionsButton setTintColor:[UIColor labelColor]];
-    }
+        if (color) mentionsColor = color;
+    } @catch (__unused NSException *exception) {}
     UIImage *mentionsImage = nil;
     @try {
         mentionsImage = thetaImageFromBundle(@"ig_icon_story_mention_pano_outline_24_Normal2x.png");
     } @catch (__unused NSException *exception) {}
-    [mentionsButton setImage:mentionsImage ?: [UIImage systemImageNamed:@"at"] forState:UIControlStateNormal];
+    UIButton *mentionsButton = [ThetaFloatingMediaButton buttonWithImage:mentionsImage ?: [UIImage systemImageNamed:@"at"] tintColor:mentionsColor];
+    mentionsButton.tag = kThetaStoryButtonTag;
     mentionsButton.imageView.contentMode = UIViewContentModeScaleAspectFit;
     mentionsButton.imageEdgeInsets = UIEdgeInsetsMake(2, 2, 2, 2);
-    mentionsButton.layer.shadowColor = [UIColor blackColor].CGColor;
-    mentionsButton.layer.shadowOpacity = 0.4;
-    mentionsButton.layer.shadowOffset = CGSizeMake(-2, 0);
-    mentionsButton.layer.shadowRadius = 3;
-    mentionsButton.layer.masksToBounds = NO;
-    [mentionsButton setTranslatesAutoresizingMaskIntoConstraints:false];
 
     NSArray<IGUser *> *mentionUsers = nil;
     @try {
@@ -1241,10 +1206,11 @@ static void setupButtons(IGStoryFullscreenCell *self) {
     for (UIButton *button in buttonStack) {
         ThetaSetCaptureHiding(button);
         [self addSubview:button];
+        [self bringSubviewToFront:button];
         [NSLayoutConstraint activateConstraints:@[
-            [button.trailingAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.trailingAnchor constant:-8],
-            [button.widthAnchor constraintEqualToConstant:30],
-            [button.heightAnchor constraintEqualToConstant:30]
+            [button.trailingAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.trailingAnchor constant:-14],
+            [button.widthAnchor constraintEqualToConstant:38],
+            [button.heightAnchor constraintEqualToConstant:38]
         ]];
 
         if (!previousButton) {
@@ -1253,7 +1219,7 @@ static void setupButtons(IGStoryFullscreenCell *self) {
             ]];
         } else {
             [NSLayoutConstraint activateConstraints:@[
-                [button.bottomAnchor constraintEqualToAnchor:previousButton.topAnchor constant:-20]
+                [button.bottomAnchor constraintEqualToAnchor:previousButton.topAnchor constant:-16]
             ]];
         }
         previousButton = button;

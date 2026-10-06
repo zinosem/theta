@@ -45,4 +45,10 @@ void ThetaShowNativeToastWithEmoji(NSString *title, NSString * _Nullable subtitl
 + (UIColor *)iotaPinkColor;
 + (NSTimeInterval)cooldownPeriod;
 
+@end
+
+@interface ThetaFloatingMediaButton : UIButton
++ (instancetype)buttonWithSystemImage:(NSString *)systemImageName tintColor:(UIColor *)tintColor;
++ (instancetype)buttonWithImage:(UIImage *)image tintColor:(UIColor *)tintColor;
+- (void)configureWithImage:(UIImage *)image tintColor:(UIColor *)tintColor;
 @end 

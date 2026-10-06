@@ -281,4 +281,78 @@ static volatile BOOL sGlobalDownloadInProgress = NO;
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
 
+@end
+
+@implementation ThetaFloatingMediaButton
+
++ (instancetype)buttonWithSystemImage:(NSString *)systemImageName tintColor:(UIColor *)tintColor {
+    UIImage *img = nil;
+    if (systemImageName.length) {
+        UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold];
+        img = [UIImage systemImageNamed:systemImageName withConfiguration:config];
+    }
+    return [self buttonWithImage:img tintColor:tintColor];
+}
+
++ (instancetype)buttonWithImage:(UIImage *)image tintColor:(UIColor *)tintColor {
+    ThetaFloatingMediaButton *btn = [self buttonWithType:UIButtonTypeCustom];
+    [btn configureWithImage:image tintColor:tintColor];
+    return btn;
+}
+
+- (void)configureWithImage:(UIImage *)image tintColor:(UIColor *)tintColor {
+    self.translatesAutoresizingMaskIntoConstraints = NO;
+
+    // Default to bright white so it is never invisible on dark or black media
+    UIColor *effectiveTint = [UIColor whiteColor];
+    if (tintColor) {
+        CGFloat r = 0, g = 0, b = 0, a = 0;
+        if ([tintColor getRed:&r green:&g blue:&b alpha:&a]) {
+            if (r > 0.15 || g > 0.15 || b > 0.15) {
+                effectiveTint = tintColor;
+            }
+        } else {
+            effectiveTint = tintColor;
+        }
+    }
+    self.tintColor = effectiveTint;
+
+    if (image) {
+        UIImage *templateImg = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+        [self setImage:templateImg forState:UIControlStateNormal];
+    }
+
+    // Frosted glass dark circular background with subtle light border
+    self.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.55];
+    self.layer.cornerRadius = 19.0;
+    self.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.35].CGColor;
+    self.layer.borderWidth = 1.0;
+    self.layer.masksToBounds = NO;
+
+    // Drop shadow for high contrast on bright media
+    self.layer.shadowColor = [UIColor blackColor].CGColor;
+    self.layer.shadowOpacity = 0.55;
+    self.layer.shadowOffset = CGSizeMake(0, 2);
+    self.layer.shadowRadius = 4.0;
+}
+
+// Expands touch hit area by at least 15pt all around (minimum 68x68 pt hit target)
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
+    CGRect hitArea = CGRectInset(self.bounds, -15.0, -15.0);
+    return CGRectContainsPoint(hitArea, point);
+}
+
+// Visual and tactile feedback when pressed
+- (void)setHighlighted:(BOOL)highlighted {
+    [super setHighlighted:highlighted];
+    [UIView animateWithDuration:0.12 animations:^{
+        self.transform = highlighted ? CGAffineTransformMakeScale(0.90, 0.90) : CGAffineTransformIdentity;
+        self.alpha = highlighted ? 0.75 : 1.0;
+    }];
+    if (highlighted) {
+        UIImpactFeedbackGenerator *impact = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+        [impact impactOccurred];
+    }
+}
+
 @end 

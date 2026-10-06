@@ -1655,13 +1655,13 @@ static void hook_sundialViewerVerticalUFI(IGSundialViewerVerticalUFI *self, SEL 
 
 			UIButton *downloadButton = [UIButton buttonWithType:UIButtonTypeSystem];
 			downloadButton.tag = 999;
-			[downloadButton setTintColor:UIColor.labelColor];
+			[downloadButton setTintColor:[UIColor whiteColor]];
 			[downloadButton setImage:[UIImage systemImageNamed:@"arrow.down"] forState:UIControlStateNormal];
 			[downloadButton setTranslatesAutoresizingMaskIntoConstraints:false];
 			downloadButton.layer.shadowColor = [UIColor blackColor].CGColor;
-			downloadButton.layer.shadowOpacity = 0.4;
-			downloadButton.layer.shadowOffset = CGSizeMake(-2, 0);
-			downloadButton.layer.shadowRadius = 3;
+			downloadButton.layer.shadowOpacity = 0.6;
+			downloadButton.layer.shadowOffset = CGSizeMake(0, 1);
+			downloadButton.layer.shadowRadius = 4;
 			downloadButton.layer.masksToBounds = NO;
 
 			ThetaSetCaptureHiding(downloadButton);
