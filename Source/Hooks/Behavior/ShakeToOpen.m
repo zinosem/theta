@@ -7,33 +7,7 @@ static void hook_shakeToOpen(id self, SEL _cmd, int arg1) {
         }
         
         if (arg1 == 1) {
-            UIViewController *topController = [ThetaHelper topViewController];
-            if (!topController) {
-                return;
-            }
-            
-            // Check if settings are already open
-            if ([topController isKindOfClass:NSClassFromString(@"SettingsViewController")] || 
-                [topController.presentedViewController isKindOfClass:NSClassFromString(@"SettingsViewController")] ||
-                [topController isKindOfClass:[%c(IGPartialModalSheetViewController) class]]) {
-                return;
-            }
-            
-            // Present settings
-            SettingsViewController *vc = [[SettingsViewController alloc] init];
-            if (!vc) {
-                NSLog(@"Failed to create SettingsViewController");
-                return;
-            }
-            
-            UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:vc];
-            if (!navController) {
-                NSLog(@"Failed to create NavigationController");
-                return;
-            }
-            
-            navController.modalPresentationStyle = UIModalPresentationPageSheet;
-            [topController presentViewController:navController animated:YES completion:nil];
+            [ThetaHelper presentSettings];
         }
     } @catch (NSException *exception) {
         NSLog(@"Error in shake to open: %@", exception);

@@ -36,6 +36,7 @@ FOUNDATION_EXPORT void ThetaShowNativeToastWithEmoji(NSString *title, NSString *
 + (UIWindow *)activeKeyWindow;
 + (UIViewController *)nearestViewController:(UIView *)view;
 + (UIViewController *)topViewController;
++ (void)presentSettings;
 
 #pragma mark - Settings Helpers
 // Stores selected index for a segment setting with given title

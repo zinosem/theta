@@ -1,4 +1,5 @@
 #import "Include/ThetaHelper.h"
+#import "Include/SettingsViewController.h"
 #import "Include/InstagramHeaders.h"
 #import "Include/CustomToastView.h"
 #import <AudioToolbox/AudioToolbox.h>
@@ -272,6 +273,55 @@ static volatile BOOL sGlobalDownloadInProgress = NO;
     UIViewController *vc = window.rootViewController;
     while (vc.presentedViewController) vc = vc.presentedViewController;
     return vc;
+}
+
++ (void)presentSettings {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        static NSTimeInterval lastPresentTime = 0;
+        NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
+        if (now - lastPresentTime < 0.75) {
+            return;
+        }
+
+        UIWindow *window = [self activeKeyWindow];
+        if (!window) return;
+
+        // Ensure SettingsViewController is not already presented anywhere in the presentation chain
+        UIViewController *curr = window.rootViewController;
+        while (curr) {
+            if ([curr isKindOfClass:NSClassFromString(@"SettingsViewController")]) {
+                return;
+            }
+            if ([curr isKindOfClass:[UINavigationController class]]) {
+                UINavigationController *nav = (UINavigationController *)curr;
+                for (UIViewController *child in nav.viewControllers) {
+                    if ([child isKindOfClass:NSClassFromString(@"SettingsViewController")]) {
+                        return;
+                    }
+                }
+            }
+            curr = curr.presentedViewController;
+        }
+
+        UIViewController *topVC = [self topViewController];
+        if (!topVC) return;
+        if ([topVC isKindOfClass:NSClassFromString(@"SettingsViewController")]) {
+            return;
+        }
+        if ([topVC isKindOfClass:[UINavigationController class]]) {
+            UINavigationController *nav = (UINavigationController *)topVC;
+            if ([nav.topViewController isKindOfClass:NSClassFromString(@"SettingsViewController")]) {
+                return;
+            }
+        }
+
+        lastPresentTime = now;
+
+        SettingsViewController *settingsVC = [[SettingsViewController alloc] init];
+        UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:settingsVC];
+        navController.modalPresentationStyle = UIModalPresentationPageSheet;
+        [topVC presentViewController:navController animated:YES completion:nil];
+    });
 }
 
 + (void)storeSegmentIndex:(NSInteger)index forSettingTitle:(NSString *)title {

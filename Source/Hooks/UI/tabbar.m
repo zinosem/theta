@@ -2,7 +2,7 @@
 #import "Include/ThetaTweakCommon.h"
 #import <objc/runtime.h>
 
-static void (*orig_tabbar)(id self, SEL _cmd);
+static void (*orig_tabbar)(id self, SEL _cmd, id sender);
 static void (*orig_layoutTabBar)(id self, SEL _cmd);
 
 static const void *kThetaMessengerSettingsLPKey = &kThetaMessengerSettingsLPKey;
@@ -16,18 +16,7 @@ static const void *kThetaMessengerSettingsLPKey = &kThetaMessengerSettingsLPKey;
     if (gr.state != UIGestureRecognizerStateBegan) {
         return;
     }
-    @try {
-        SettingsViewController *settingsVC = [[SettingsViewController alloc] init];
-        UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:settingsVC];
-        navController.modalPresentationStyle = UIModalPresentationPageSheet;
-
-        UIViewController *topVC = [ThetaHelper topViewController];
-        if (topVC) {
-            [topVC presentViewController:navController animated:YES completion:nil];
-        }
-    } @catch (NSException *exception) {
-        NSLog(@"MessengerMode tabbar settings: %@", exception);
-    }
+    [ThetaHelper presentSettings];
 }
 
 @end
@@ -85,25 +74,20 @@ static void hook_layoutTabBar(id self, SEL _cmd) {
     theta_attachMessengerSettingsLongPressToDirectInboxIfNeeded(self);
 }
 
-static void hook_tabbar(id self, SEL _cmd) {
+static void hook_tabbar(id self, SEL _cmd, id sender) {
+    if ([sender isKindOfClass:[UIGestureRecognizer class]]) {
+        UIGestureRecognizer *gr = (UIGestureRecognizer *)sender;
+        if (gr.state != UIGestureRecognizerStateBegan) {
+            return;
+        }
+    }
     if (ENABLED(@"Messenger Mode")) {
         if (orig_tabbar) {
-            orig_tabbar(self, _cmd);
+            orig_tabbar(self, _cmd, sender);
         }
         return;
     }
-    @try {
-        SettingsViewController *settingsVC = [[SettingsViewController alloc] init];
-        UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:settingsVC];
-        navController.modalPresentationStyle = UIModalPresentationPageSheet;
-
-        UIViewController *topVC = [ThetaHelper topViewController];
-        if (topVC) {
-            [topVC presentViewController:navController animated:YES completion:nil];
-        }
-    } @catch (NSException *exception) {
-        NSLog(@"Error presenting settings: %@", exception);
-    }
+    [ThetaHelper presentSettings];
 }
 
 void THRegisterTabBarHooks(void) {

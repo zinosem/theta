@@ -56,14 +56,7 @@ static void hook_settingButtonInFeedView(id self, SEL _cmd) {
 		}
 
 		[settingsButton addAction:[UIAction actionWithHandler:^(__kindof UIAction * _Nonnull action) {
-			@try {
-				SettingsViewController *settingsVC = [[SettingsViewController alloc] init];
-				UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:settingsVC];
-				navController.modalPresentationStyle = UIModalPresentationPageSheet;
-				[[ThetaHelper topViewController] presentViewController:navController animated:YES completion:nil];
-			} @catch (NSException *exception) {
-				NSLog(@"Error presenting settings: %@", exception);
-			}
+			[ThetaHelper presentSettings];
 		}] forControlEvents:UIControlEventTouchUpInside];
 
 		objc_setAssociatedObject(self, &kThetaSettingsButtonOnceKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
