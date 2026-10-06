@@ -11,37 +11,35 @@ static NSArray *removeAdsItemsInList(NSArray *list) {
     [filteredList enumerateObjectsWithOptions:NSEnumerationReverse usingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
         if (!obj) return;
 
-        BOOL isSponsored = (([obj isKindOfClass:%c(IGFeedItem)] && [obj performSelector:@selector(isSponsored)]) ||
-                            ([obj isKindOfClass:%c(IGFeedItem)] && [obj performSelector:@selector(isSponsoredApp)]) ||
-                            [obj isKindOfClass:%c(IGAdItem)]);
+        BOOL isSponsored = NO;
+        if ([obj respondsToSelector:@selector(isSponsored)]) {
+            @try { isSponsored = (BOOL)[obj performSelector:@selector(isSponsored)]; } @catch (__unused NSException *e) {}
+        }
+        if (!isSponsored && [obj respondsToSelector:@selector(isSponsoredApp)]) {
+            @try { isSponsored = (BOOL)[obj performSelector:@selector(isSponsoredApp)]; } @catch (__unused NSException *e) {}
+        }
+        if (!isSponsored && [obj isKindOfClass:%c(IGAdItem)]) {
+            isSponsored = YES;
+        }
 
         BOOL isSuggested = NO;
-        if ([obj respondsToSelector:@selector(isOrganicMedia)]) {
-            isSuggested = [obj isKindOfClass:NSClassFromString(@"IGMedia")] && [[obj performSelector:@selector(explorePostInFeed)] integerValue] == 1 && ![[obj performSelector:@selector(isOrganicMedia)] boolValue];
-        } else if ([obj respondsToSelector:@selector(isShoppableOrganicMedia:)]) {
-            isSuggested = [obj isKindOfClass:NSClassFromString(@"IGMedia")] && [[obj performSelector:@selector(explorePostInFeed)] integerValue] == 1 && ![[obj performSelector:@selector(isShoppableOrganicMedia:)] boolValue];
-        }
-
-        NSMutableArray *adsToRemove = [NSMutableArray array];
-        NSMutableArray *suggestedToRemove = [NSMutableArray array];
-
-        if (disableAds) {
-            if (isSponsored) {
-                [adsToRemove addObject:obj];
-            }
+        if ([obj respondsToSelector:@selector(explorePostInFeed)]) {
+            @try {
+                if ([obj isKindOfClass:NSClassFromString(@"IGMedia")] && [[obj performSelector:@selector(explorePostInFeed)] integerValue] == 1) {
+                    if ([obj respondsToSelector:@selector(isOrganicMedia)]) {
+                        isSuggested = ![[obj performSelector:@selector(isOrganicMedia)] boolValue];
+                    } else if ([obj respondsToSelector:@selector(isShoppableOrganicMedia:)]) {
+                        isSuggested = ![[obj performSelector:@selector(isShoppableOrganicMedia:)] boolValue];
+                    }
+                }
+            } @catch (__unused NSException *e) {}
         }
 
         if (disableAds) {
-            if (isSponsored) {
-                [adsToRemove addObject:obj];
-            }
-            if (isSuggested) {
-                [suggestedToRemove addObject:obj];
+            if (isSponsored || isSuggested) {
+                [filteredList removeObjectAtIndex:idx];
             }
         }
-
-        [filteredList removeObjectsInArray:adsToRemove];
-        [filteredList removeObjectsInArray:suggestedToRemove];
     }];
     
     return [filteredList copy];

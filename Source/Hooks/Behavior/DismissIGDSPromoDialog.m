@@ -224,8 +224,7 @@ static void hook_hideIGDSPromoDialog(id self, SEL _cmd) {
             if (pressed) return;
             // Fallback: remove/dismiss safely if we couldn't press
             view.hidden = YES;
-            [view removeFromSuperview];
-            UIWindow *w = view.window ?: UIApplication.sharedApplication.keyWindow ?: UIApplication.sharedApplication.windows.firstObject;
+            UIWindow *w = view.window ?: [ThetaHelper activeKeyWindow];
             if (!w) return;
             UIViewController *vc = thetaFindOwningViewController(view);
             if (!vc) vc = w.rootViewController.presentedViewController;

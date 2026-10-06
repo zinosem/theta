@@ -30,7 +30,7 @@ static const NSTimeInterval kFetchDelay = 1.0;
     if (!msg || msg.length == 0) return;
     
     MAIN_THREAD(^{
-        UIWindow *win = [UIApplication sharedApplication].keyWindow;
+        UIWindow *win = [ThetaHelper activeKeyWindow];
         if (!win) return;
         
         UIFont *font = [UIFont boldSystemFontOfSize:12];

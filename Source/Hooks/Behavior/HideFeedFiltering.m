@@ -136,7 +136,14 @@ static NSArray *theta_removeAdsFromList(NSArray *list) {
     for (id obj in list) {
         if (!obj) continue;
         BOOL isAd = NO;
-        if ([obj isKindOfClass:%c(IGFeedItem)] && ([obj performSelector:@selector(isSponsored)] || [obj performSelector:@selector(isSponsoredApp)]))
+        BOOL isSponsored = NO;
+        if ([obj respondsToSelector:@selector(isSponsored)]) {
+            @try { isSponsored = (BOOL)[obj performSelector:@selector(isSponsored)]; } @catch (__unused NSException *e) {}
+        }
+        if (!isSponsored && [obj respondsToSelector:@selector(isSponsoredApp)]) {
+            @try { isSponsored = (BOOL)[obj performSelector:@selector(isSponsoredApp)]; } @catch (__unused NSException *e) {}
+        }
+        if ([obj isKindOfClass:%c(IGFeedItem)] && isSponsored)
             isAd = YES;
         if ([obj isKindOfClass:%c(IGDiscoveryGridItem)] && [(IGDiscoveryGridItem *)obj respondsToSelector:@selector(model)]) {
             id model = [(IGDiscoveryGridItem *)obj model];

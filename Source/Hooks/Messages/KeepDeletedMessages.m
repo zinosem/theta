@@ -41,20 +41,16 @@ static void hook_messageCache(id self, SEL _cmd, id update) {
 						return;
 					}
 
+					BOOL didSaveAny = NO;
 					for (id messageKey in removeKeys) {
-						if (![messageKey isKindOfClass:NSClassFromString(@"IGDirectMessageUpdateMessageKey")]) {
-							orig_messageCache(self, _cmd, retained);
-							return;
+						if (![messageKey respondsToSelector:@selector(valueForKey:)]) continue;
+						NSString *MsgKey = [messageKey valueForKey:@"_messageServerId"];
+						if (MsgKey && [MsgKey isKindOfClass:[NSString class]] && MsgKey.length > 0) {
+							[[MessagesManager sharedManager] saveDeletedMessageWithID:MsgKey];
+							didSaveAny = YES;
 						}
-						IGDirectMessageUpdateMessageKey *updateKey = messageKey;
-
-						if (![updateKey valueForKey:@"_messageServerId"]) {
-							orig_messageCache(self, _cmd, retained);
-							return;
-						}
-
-						NSString *MsgKey = [updateKey valueForKey:@"_messageServerId"];
-						[[MessagesManager sharedManager] saveDeletedMessageWithID:MsgKey];
+					}
+					if (didSaveAny) {
 						return;
 					}
 				}

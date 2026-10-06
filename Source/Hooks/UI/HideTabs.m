@@ -440,7 +440,7 @@ static BOOL theta_anyTabHideEnabled(void) {
 static UIViewController *theta_findIGTabBarController(void) {
     Class cls = objc_getClass("IGTabBarController");
     if (!cls) return nil;
-    UIWindow *win = [UIApplication sharedApplication].keyWindow;
+    UIWindow *win = [ThetaHelper activeKeyWindow];
     UIViewController *root = win.rootViewController;
     if (!root) return nil;
     NSMutableArray *queue = [NSMutableArray arrayWithObject:root];

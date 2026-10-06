@@ -237,29 +237,38 @@ static volatile BOOL sGlobalDownloadInProgress = NO;
     return [self nearestViewController:[view superview]];
 }
 
-+ (UIViewController *)topViewController {
-    UIWindow *window = nil;
++ (UIWindow *)activeKeyWindow {
     UIApplication *app = [UIApplication sharedApplication];
     if (@available(iOS 13.0, *)) {
         for (UIScene *scene in app.connectedScenes) {
             if (scene.activationState != UISceneActivationStateForegroundActive) continue;
             if (![scene isKindOfClass:[UIWindowScene class]]) continue;
             for (UIWindow *w in ((UIWindowScene *)scene).windows) {
-                if (w.isKeyWindow) { window = w; break; }
+                if (w.isKeyWindow) return w;
             }
-            if (!window) window = ((UIWindowScene *)scene).windows.firstObject;
-            if (window) break;
+            UIWindow *first = ((UIWindowScene *)scene).windows.firstObject;
+            if (first) return first;
+        }
+        for (UIScene *scene in app.connectedScenes) {
+            if (![scene isKindOfClass:[UIWindowScene class]]) continue;
+            UIWindow *first = ((UIWindowScene *)scene).windows.firstObject;
+            if (first) return first;
         }
     }
-    if (!window) {
+    for (UIWindow *w in app.windows) {
+        if (w.isKeyWindow) return w;
+    }
+    if (app.windows.count) {
+        return app.windows.firstObject;
+    }
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        window = app.keyWindow ?: app.windows.firstObject;
-        if (!window && [app.delegate respondsToSelector:@selector(window)]) {
-            window = [app.delegate window];
-        }
+    return app.keyWindow;
 #pragma clang diagnostic pop
-    }
+}
+
++ (UIViewController *)topViewController {
+    UIWindow *window = [self activeKeyWindow];
     UIViewController *vc = window.rootViewController;
     while (vc.presentedViewController) vc = vc.presentedViewController;
     return vc;

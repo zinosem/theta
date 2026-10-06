@@ -23,8 +23,10 @@ static void hook_directComposer2(id self, SEL _cmd) {
             id msgListDataSource = nil;
             if ([viewController isKindOfClass:NSClassFromString(@"IGDirectComposerViewController")]) {
                 ballsThreadVC = [viewController valueForKey:@"delegate"];
-                msgListDataSource = [ballsThreadVC valueForKey:@"_messageListDataSource"];
-                id lastSenderImg = [msgListDataSource performSelector:@selector(mostRecentMessageSenderProfileImage)];
+                id lastSenderImg = nil;
+                if ([msgListDataSource respondsToSelector:@selector(mostRecentMessageSenderProfileImage)]) {
+                    lastSenderImg = [msgListDataSource performSelector:@selector(mostRecentMessageSenderProfileImage)];
+                }
                 //lastSender = [lastSenderImg valueForKey:@"_profileImage_user"];
                 
                 // check if lastSenderImg has ivar '_profileImage_user' or '_profileImageModel_user'

@@ -33,13 +33,7 @@ static void hook_shakeToOpen(id self, SEL _cmd, int arg1) {
             }
             
             navController.modalPresentationStyle = UIModalPresentationPageSheet;
-            UIViewController *rootViewController = [UIApplication sharedApplication].keyWindow.rootViewController;
-            if (!rootViewController) {
-                NSLog(@"No root view controller found");
-                return;
-            }
-            
-            [rootViewController presentViewController:navController animated:YES completion:nil];
+            [topController presentViewController:navController animated:YES completion:nil];
         }
     } @catch (NSException *exception) {
         NSLog(@"Error in shake to open: %@", exception);

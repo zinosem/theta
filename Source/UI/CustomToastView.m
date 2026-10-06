@@ -1,4 +1,5 @@
 #import "Include/CustomToastView.h"
+#import "Include/ThetaHelper.h"
 
 // Toast stacking management
 static __weak CustomToastView *sProgressToast = nil; // persistent progress toast (no auto-hide)
@@ -11,6 +12,17 @@ static const CGFloat kToastVerticalSpacing = -2.0; // tighter gap between stacke
 static const NSTimeInterval kToastCoalesceWindow = 0.25; // seconds
 static NSTimeInterval sLastProgressToastAt = 0;
 static NSTimeInterval sLastNormalToastAt = 0;
+
+static CGFloat thetaToastBaseTopMargin(UIWindow *window) {
+    CGFloat topInset = 0.0;
+    if (@available(iOS 11.0, *)) {
+        if (window) {
+            topInset = window.safeAreaInsets.top;
+        }
+    }
+    // Dynamic Island safe-area accommodation (iPhone 16 Pro / iOS 18)
+    return (topInset > 0.0) ? (topInset + 8.0) : kToastTopMargin;
+}
 
 static void closeApp(void) {
 	// just a bunch of stuff, so patching one doesn't stop the app from closing
@@ -45,6 +57,8 @@ static void closeAppWithAnimation(void) {
 
 @implementation CustomToastView
 -(UIWindow *)getKeyWindow {
+    UIWindow *w = [ThetaHelper activeKeyWindow];
+    if (w) return w;
     NSArray *windows = [UIApplication sharedApplication].windows;
     for (UIWindow *window in [windows reverseObjectEnumerator]) {
         if (window.hidden == NO && window.alpha > 0) return window;
@@ -287,12 +301,14 @@ static void closeAppWithAnimation(void) {
     CGFloat requiredHeight = [self calculateRequiredHeight:toastWidth];
     requiredHeight = MAX(kToastMinHeight, MIN(kToastMaxHeight, requiredHeight));
 
+    CGFloat baseTopMargin = thetaToastBaseTopMargin(keyWindow);
+
     // Base constraints
     [NSLayoutConstraint activateConstraints:@[
         [self.centerXAnchor constraintEqualToAnchor:keyWindow.centerXAnchor]
     ]];
     // Adjustable constraints we keep references to
-    self.topConstraint = [self.topAnchor constraintEqualToAnchor:keyWindow.topAnchor constant:kToastTopMargin];
+    self.topConstraint = [self.topAnchor constraintEqualToAnchor:keyWindow.topAnchor constant:baseTopMargin];
     self.widthConstraint = [self.widthAnchor constraintEqualToConstant:toastWidth];
     self.heightConstraint = [self.heightAnchor constraintEqualToConstant:requiredHeight];
     self.topConstraint.active = YES;
@@ -303,21 +319,21 @@ static void closeAppWithAnimation(void) {
     if (!self.isProgressType && sProgressToast && sProgressToast.superview) {
         // Showing a normal toast while a progress toast exists → push progress down
         CGFloat progressHeight = sProgressToast.heightConstraint.constant;
-        sProgressToast.topConstraint.constant = kToastTopMargin + requiredHeight + kToastVerticalSpacing;
+        sProgressToast.topConstraint.constant = baseTopMargin + requiredHeight + kToastVerticalSpacing;
     }
     if (self.isProgressType && sNormalToast && sNormalToast.superview) {
         // If normal appeared within the coalesce window, prefer only progress
         if ((now - sLastNormalToastAt) <= kToastCoalesceWindow) {
             [sNormalToast removeFromSuperview];
             sNormalToast = nil;
-            self.topConstraint.constant = kToastTopMargin;
+            self.topConstraint.constant = baseTopMargin;
         } else {
             // Showing progress while a normal toast is showing → place progress under normal
             CGFloat normalHeight = sNormalToast.heightConstraint.constant;
-            self.topConstraint.constant = kToastTopMargin + normalHeight + kToastVerticalSpacing;
+            self.topConstraint.constant = baseTopMargin + normalHeight + kToastVerticalSpacing;
         }
     } else {
-        self.topConstraint.constant = kToastTopMargin;
+        self.topConstraint.constant = baseTopMargin;
     }
 
     [keyWindow layoutIfNeeded];
@@ -326,9 +342,9 @@ static void closeAppWithAnimation(void) {
 
     [UIView animateWithDuration:0.35
                           delay:0
-         usingSpringWithDamping:0.9
-          initialSpringVelocity:0.4
-                        options:UIViewAnimationOptionCurveEaseInOut
+         usingSpringWithDamping:0.85
+          initialSpringVelocity:0.5
+                        options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction
                      animations:^{
         self.transform = CGAffineTransformIdentity;
         if (!self.isProgressType && sProgressToast && sProgressToast.superview) {
@@ -570,11 +586,11 @@ static void closeAppWithAnimation(void) {
 }
 
 -(void)hideWithAnimation {
-    [UIView animateWithDuration:0.28
+    [UIView animateWithDuration:0.25
                           delay:0
-         usingSpringWithDamping:0.95
-          initialSpringVelocity:0.2
-                        options:UIViewAnimationOptionCurveEaseInOut
+         usingSpringWithDamping:0.9
+          initialSpringVelocity:0.3
+                        options:UIViewAnimationOptionCurveEaseIn | UIViewAnimationOptionAllowUserInteraction
                      animations:^{
         self.transform = CGAffineTransformMakeTranslation(0, -self.bounds.size.height - 30);
     } completion:^(BOOL finished) {
@@ -589,12 +605,13 @@ static void closeAppWithAnimation(void) {
             // If a normal toast disappeared and we have a progress toast, move it back up
             if (wasNormal && sProgressToast && sProgressToast.superview) {
                 UIWindow *keyWindow = [self getKeyWindow];
-                sProgressToast.topConstraint.constant = kToastTopMargin;
+                CGFloat baseMargin = thetaToastBaseTopMargin(keyWindow);
+                sProgressToast.topConstraint.constant = baseMargin;
                 [UIView animateWithDuration:0.25
                                       delay:0
-                     usingSpringWithDamping:0.95
-                      initialSpringVelocity:0.2
-                                    options:UIViewAnimationOptionCurveEaseInOut
+                     usingSpringWithDamping:0.85
+                      initialSpringVelocity:0.4
+                                    options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction
                                  animations:^{
                     [keyWindow layoutIfNeeded];
                 } completion:nil];

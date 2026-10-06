@@ -1,5 +1,6 @@
 #import <objc/message.h>
 #import <objc/runtime.h>
+#import "Include/ThetaHelper.h"
 
 static NSArray<NSString *> *theta_otherParticipantUsernames(id threadVC);
 static Class s_threadVCClass(void);
@@ -393,7 +394,7 @@ static id theta_threadVCFromWindow(void) {
 		NSArray *windows = [UIApplication sharedApplication].windows;
 		if (![windows isKindOfClass:[NSArray class]]) return nil;
 		// Search key window first, then all windows (DM might be in a presented or secondary window).
-		UIWindow *keyWin = [UIApplication sharedApplication].keyWindow;
+		UIWindow *keyWin = [ThetaHelper activeKeyWindow];
 		NSMutableArray *toTry = [NSMutableArray array];
 		if (keyWin) [toTry addObject:keyWin];
 		for (UIWindow *w in windows) {
@@ -434,7 +435,7 @@ static id theta_firstVCWithParticipantsFromWindow(void) {
 	@try {
 		NSArray *windows = [UIApplication sharedApplication].windows;
 		if (![windows isKindOfClass:[NSArray class]]) return nil;
-		UIWindow *keyWin = [UIApplication sharedApplication].keyWindow;
+		UIWindow *keyWin = [ThetaHelper activeKeyWindow];
 		NSMutableArray *toTry = [NSMutableArray array];
 		if (keyWin) [toTry addObject:keyWin];
 		for (UIWindow *w in windows) {

@@ -172,8 +172,8 @@ static BOOL ThetaViewIsOnscreen(UIView *view, UIView *root) {
 	UIButton *btn = self.button;
 	if (!btn) {
 		UIView *searchRoot = self.container ?: self.root ?: (self.button ? self.button.window : nil);
-		if (!searchRoot && [UIApplication respondsToSelector:@selector(sharedApplication)]) {
-			searchRoot = UIApplication.sharedApplication.keyWindow;
+		if (!searchRoot) {
+			searchRoot = [ThetaHelper activeKeyWindow];
 		}
 		btn = (UIButton *)[searchRoot viewWithTag:869321];
 	}

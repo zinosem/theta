@@ -1242,14 +1242,14 @@ static void setupButtons(IGStoryFullscreenCell *self) {
         ThetaSetCaptureHiding(button);
         [self addSubview:button];
         [NSLayoutConstraint activateConstraints:@[
-            [button.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-8],
+            [button.trailingAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.trailingAnchor constant:-8],
             [button.widthAnchor constraintEqualToConstant:30],
             [button.heightAnchor constraintEqualToConstant:30]
         ]];
 
         if (!previousButton) {
             [NSLayoutConstraint activateConstraints:@[
-                [button.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-150]
+                [button.bottomAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.bottomAnchor constant:-116]
             ]];
         } else {
             [NSLayoutConstraint activateConstraints:@[

@@ -25,7 +25,8 @@
 
 - (void)loadView {
 	[super loadView];
-	self.view = [[UIView alloc] initWithFrame:[UIScreen mainScreen].bounds];
+	UIWindow *w = [ThetaHelper activeKeyWindow];
+	self.view = [[UIView alloc] initWithFrame:w ? w.bounds : [UIScreen mainScreen].bounds];
 }
 
 - (void)viewDidLoad {

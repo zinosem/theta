@@ -21,9 +21,9 @@ static const void *kThetaMessengerSettingsLPKey = &kThetaMessengerSettingsLPKey;
         UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:settingsVC];
         navController.modalPresentationStyle = UIModalPresentationPageSheet;
 
-        UIViewController *rootViewController = [UIApplication sharedApplication].keyWindow.rootViewController;
-        if (rootViewController) {
-            [rootViewController presentViewController:navController animated:YES completion:nil];
+        UIViewController *topVC = [ThetaHelper topViewController];
+        if (topVC) {
+            [topVC presentViewController:navController animated:YES completion:nil];
         }
     } @catch (NSException *exception) {
         NSLog(@"MessengerMode tabbar settings: %@", exception);
@@ -97,9 +97,9 @@ static void hook_tabbar(id self, SEL _cmd) {
         UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:settingsVC];
         navController.modalPresentationStyle = UIModalPresentationPageSheet;
 
-        UIViewController *rootViewController = [UIApplication sharedApplication].keyWindow.rootViewController;
-        if (rootViewController) {
-            [rootViewController presentViewController:navController animated:YES completion:nil];
+        UIViewController *topVC = [ThetaHelper topViewController];
+        if (topVC) {
+            [topVC presentViewController:navController animated:YES completion:nil];
         }
     } @catch (NSException *exception) {
         NSLog(@"Error presenting settings: %@", exception);

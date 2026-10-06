@@ -33,6 +33,7 @@ void ThetaShowNativeToastWithEmoji(NSString *title, NSString * _Nullable subtitl
 + (BOOL)isGlobalDownloadInProgress;
 
 #pragma mark - Utility Functions
++ (UIWindow *)activeKeyWindow;
 + (UIViewController *)nearestViewController:(UIView *)view;
 + (UIViewController *)topViewController;
 

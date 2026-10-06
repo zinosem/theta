@@ -53,25 +53,7 @@ static void RecordFailedHookLine(NSString *line) {
 }
 
 static UIViewController *ThetaPresenterForAlert(void) {
-    UIApplication *app = [UIApplication sharedApplication];
-    UIWindow *window = app.keyWindow;
-    if (!window) {
-        for (UIWindow *w in app.windows) {
-            if (w.isKeyWindow && !w.hidden) {
-                window = w;
-                break;
-            }
-        }
-    }
-    if (!window && app.windows.count) {
-        window = app.windows[0];
-    }
-    if (!window) return nil;
-    UIViewController *vc = window.rootViewController;
-    while (vc && vc.presentedViewController) {
-        vc = vc.presentedViewController;
-    }
-    return vc;
+    return [ThetaHelper topViewController];
 }
 
 static void PresentAggregatedHookFailureAlert(void) {

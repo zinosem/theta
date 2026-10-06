@@ -7,20 +7,8 @@ static id getActionableConfirmationToastPresenter(void) {
     if (!presenterClass) return nil;
 
     // 1) Try IGRootViewController property (common: root VC holds the presenter)
-    UIViewController *root = nil;
-    UIWindow *keyWindow = nil;
-    for (UIWindow *w in [UIApplication sharedApplication].windows) {
-        if (!w.isKeyWindow) continue;
-        keyWindow = w;
-        root = w.rootViewController;
-        break;
-    }
-    if (!root) {
-        keyWindow = [UIApplication sharedApplication].keyWindow;
-    }
-    if (!root && keyWindow) {
-        root = keyWindow.rootViewController;
-    }
+    UIWindow *keyWindow = [ThetaHelper activeKeyWindow];
+    UIViewController *root = keyWindow ? keyWindow.rootViewController : nil;
 
     while (root && root.presentedViewController) {
         root = root.presentedViewController;
@@ -116,7 +104,7 @@ static id getToastControllerFromViewInHierarchy(void) {
     Class viewClass = NSClassFromString(@"IGActionableConfirmationToastView");
     Class controllerClass = NSClassFromString(@"IGActionableConfirmationToastController");
     if (!viewClass || !controllerClass) return nil;
-    UIWindow *window = [UIApplication sharedApplication].keyWindow;
+    UIWindow *window = [ThetaHelper activeKeyWindow];
     if (!window) return nil;
     return findToastViewInView(window, viewClass, controllerClass);
 }
@@ -357,7 +345,7 @@ static id getExistingViewModelFromHierarchy(id controllerOrNil, id presenterOrNi
         if (viewModel) NSLog(@"Theta: viewModel from presenter ivar scan");
     }
     if (!viewModel && viewClass) {
-        UIWindow *window = [UIApplication sharedApplication].keyWindow;
+        UIWindow *window = [ThetaHelper activeKeyWindow];
         UIView *toastView = window ? findToastViewOnly(window, viewClass) : nil;
         if (toastView) {
             for (NSString *key in @[ @"viewModel", @"_viewModel" ]) {
@@ -547,7 +535,7 @@ void ThetaShowNativeToast(NSString *title, NSString * _Nullable subtitle, UIImag
     if (!viewModel) viewModel = getExistingViewModelFromHierarchy(controller, presenter, title, sub);
     UIViewController *vc = s_toastPresenterOwnerVC ?: [ThetaHelper topViewController];
     if (!vc) {
-        UIWindow *kw = [UIApplication sharedApplication].keyWindow;
+        UIWindow *kw = [ThetaHelper activeKeyWindow];
         if (kw) {
             vc = kw.rootViewController;
         }

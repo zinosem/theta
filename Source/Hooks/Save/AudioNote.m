@@ -79,9 +79,15 @@ static void hook_saveNoteAudio(id self, SEL _cmd) {
             if (musicInfo) {
                                 id musicInfoValue = object_getIvar(pressedView, musicInfo);
                                 if (musicInfoValue) {
-                id musicAssets = [musicInfoValue performSelector:@selector(musicAssetInfo)];
-                if (musicAssets) {
-                    NSString *xml = [musicAssets performSelector:@selector(dashManifest)];
+                                    id musicAssets = nil;
+                                    if ([musicInfoValue respondsToSelector:@selector(musicAssetInfo)]) {
+                                        musicAssets = [musicInfoValue performSelector:@selector(musicAssetInfo)];
+                                    }
+                                    if (musicAssets) {
+                                        NSString *xml = nil;
+                                        if ([musicAssets respondsToSelector:@selector(dashManifest)]) {
+                                            xml = [musicAssets performSelector:@selector(dashManifest)];
+                                        }
                                         if (xml && xml.length > 0) {
                         NSString *audioURL = IGDashManifestBestAudioURL(xml);
                                             if (audioURL && audioURL.length > 0) {

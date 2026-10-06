@@ -57,8 +57,8 @@ static void hook_visualmsgghostbuttons(IGDirectVisualMessageViewerController *se
         if (downloadVideos && !hideSeenState) {
             [containerView addSubview:downloadButton];
             [NSLayoutConstraint activateConstraints:@[
-                [downloadButton.bottomAnchor constraintEqualToAnchor:containerView.bottomAnchor constant:-150],
-                [downloadButton.trailingAnchor constraintEqualToAnchor:containerView.trailingAnchor constant:-8],
+                [downloadButton.bottomAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.bottomAnchor constant:-116],
+                [downloadButton.trailingAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.trailingAnchor constant:-8],
                 [downloadButton.widthAnchor constraintEqualToConstant:30],
                 [downloadButton.heightAnchor constraintEqualToConstant:30]
             ]];
@@ -67,8 +67,8 @@ static void hook_visualmsgghostbuttons(IGDirectVisualMessageViewerController *se
         if (!downloadVideos && hideSeenState) {
             [containerView addSubview:seenButton];
             [NSLayoutConstraint activateConstraints:@[
-                [seenButton.bottomAnchor constraintEqualToAnchor:containerView.bottomAnchor constant:-150],
-                [seenButton.trailingAnchor constraintEqualToAnchor:containerView.trailingAnchor constant:-8],
+                [seenButton.bottomAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.bottomAnchor constant:-116],
+                [seenButton.trailingAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.trailingAnchor constant:-8],
                 [seenButton.widthAnchor constraintEqualToConstant:30],
                 [seenButton.heightAnchor constraintEqualToConstant:30]
             ]];
@@ -78,14 +78,14 @@ static void hook_visualmsgghostbuttons(IGDirectVisualMessageViewerController *se
             [containerView addSubview:downloadButton];
             [containerView addSubview:seenButton];
             [NSLayoutConstraint activateConstraints:@[
-                [downloadButton.bottomAnchor constraintEqualToAnchor:containerView.bottomAnchor constant:-150],
-                [downloadButton.trailingAnchor constraintEqualToAnchor:containerView.trailingAnchor constant:-8],
+                [downloadButton.bottomAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.bottomAnchor constant:-116],
+                [downloadButton.trailingAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.trailingAnchor constant:-8],
                 [downloadButton.widthAnchor constraintEqualToConstant:30],
                 [downloadButton.heightAnchor constraintEqualToConstant:30]
             ]];
             [NSLayoutConstraint activateConstraints:@[
                 [seenButton.bottomAnchor constraintEqualToAnchor:downloadButton.topAnchor constant:-20],
-                [seenButton.trailingAnchor constraintEqualToAnchor:containerView.trailingAnchor constant:-8],
+                [seenButton.trailingAnchor constraintEqualToAnchor:containerView.safeAreaLayoutGuide.trailingAnchor constant:-8],
                 [seenButton.widthAnchor constraintEqualToConstant:30],
                 [seenButton.heightAnchor constraintEqualToConstant:30]
             ]];
@@ -99,12 +99,16 @@ static void hook_visualmsgghostbuttons(IGDirectVisualMessageViewerController *se
                 UIView *containView = [strongSelf valueForKey:@"_viewerContainerView"];
                 UIView *medView = [containView valueForKey:@"mediaView"];
                 if ([medView isKindOfClass:NSClassFromString(@"IGStoryModernVideoView")]) {
-                    [strongSelf performSelector:@selector(storyPlayerMediaViewDidPlay:) withObject:medView];
+                    if ([strongSelf respondsToSelector:@selector(storyPlayerMediaViewDidPlay:)]) {
+                        @try { [strongSelf performSelector:@selector(storyPlayerMediaViewDidPlay:) withObject:medView]; } @catch (__unused NSException *e) {}
+                    }
                     videoPlayed = YES;
                 }
 
                 if ([medView isKindOfClass:NSClassFromString(@"IGStoryPhotoView")]) {
-                    [strongSelf storyPlayerMediaViewDidLoad:medView loadSource:0 networkRequestSummary:0];
+                    if ([strongSelf respondsToSelector:@selector(storyPlayerMediaViewDidLoad:loadSource:networkRequestSummary:)]) {
+                        @try { [strongSelf storyPlayerMediaViewDidLoad:medView loadSource:0 networkRequestSummary:0]; } @catch (__unused NSException *e) {}
+                    }
                     videoPlayed = YES;
                 }
 

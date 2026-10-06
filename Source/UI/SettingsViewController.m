@@ -771,8 +771,10 @@ NSData *compressData(NSData *uncompressedData) {
     [session addOutput:output];
 
     UIViewController *scanVC = [[UIViewController alloc] init];
+    scanVC.view.backgroundColor = [UIColor blackColor];
     AVCaptureVideoPreviewLayer *previewLayer = [AVCaptureVideoPreviewLayer layerWithSession:session];
-    previewLayer.frame = [UIScreen mainScreen].bounds;
+    UIWindow *activeWin = [ThetaHelper activeKeyWindow];
+    previewLayer.frame = activeWin ? activeWin.bounds : [UIScreen mainScreen].bounds;
     previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
     [scanVC.view.layer addSublayer:previewLayer];
 
