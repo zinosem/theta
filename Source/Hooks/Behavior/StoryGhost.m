@@ -458,12 +458,12 @@ static void downloadAllMedia(IGStoryFullscreenCell *self) {
 		UIImage *fetchingImage = [UIImage systemImageNamed:@"arrow.clockwise"];
 		[ThetaHelper showToastWithTitle:toastTitle subtitle:@"This will only take a second." icon:fetchingImage autoHide:4 openURL:nil];
 	}
-	NSURL *url = nil;
-	UIImage *preview = nil;
 	if (viewModel) {
 		dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
 			@autoreleasepool {
 				for (id item in items) {
+					NSURL *url = nil;
+					UIImage *preview = nil;
 					if (item && [item isKindOfClass:NSClassFromString(@"IGMedia")]) {
 						id media = item;
 						BOOL isPhoto = NO;
@@ -525,8 +525,6 @@ static void downloadAllMedia(IGStoryFullscreenCell *self) {
 					if (url && url.absoluteString) {  // Make sure we have a valid URL
 						NSDictionary *mediaDict = @{ @"url": url.absoluteString, @"preview": preview ?: [UIImage systemImageNamed:@"photo"] };
 						[mediaItems addObject:mediaDict];
-						url = nil;  // Reset URL to avoid duplicates
-						preview = nil;
 					}
 				}
 
