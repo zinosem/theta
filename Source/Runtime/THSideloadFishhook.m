@@ -173,7 +173,9 @@ static OSStatus hooked_SecItemDelete(CFDictionaryRef query) {
 }
 
 static void install_fishhook_rebindings(void) {
-#ifdef SIDELOAD
+#if defined(SIDELOAD)
+    return;
+#endif
     // Resolve real implementations before rebinding (after rebind, dlsym would return our hooks).
     void *p = dlsym(RTLD_DEFAULT, "SecItemCopyMatching");
     real_SecItemCopyMatching = (OSStatus (*)(CFDictionaryRef, CFTypeRef *))p;
@@ -194,5 +196,4 @@ static void install_fishhook_rebindings(void) {
     if (rebind_symbols(rebindings, n) == 0) {
         NSLog(@"[Theta] SecItem* hooks installed (sideload session persist)");
     }
-#endif
 }

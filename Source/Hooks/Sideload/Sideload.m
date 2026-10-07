@@ -71,21 +71,28 @@ static NSURL *hook_NSFileManager(id self, SEL _cmd, NSString *groupIdentifier) {
 // sideload. Must NOT call ThetaHelper/createDirectoryAtURL — that re-enters this hook
 // (createDirectoryAtURL → createDirectoryAtPath) and stack-overflows.
 static BOOL hook_createDirectoryAtPath(id self, SEL _cmd, NSString *path, BOOL createIntermediates, NSDictionary *attributes, NSError **error) {
-	if (!orig_createDirectoryAtPath) {
-		if (error) *error = nil;
-		return NO;
-	}
-	BOOL ok = orig_createDirectoryAtPath(self, _cmd, path, createIntermediates, attributes, error);
-	if (ok) return YES;
-	if (path && ([path rangeOfString:@"MobileConfig" options:NSCaseInsensitiveSearch].location != NSNotFound ||
-	             [path rangeOfString:@"FBMobileConfig" options:NSCaseInsensitiveSearch].location != NSNotFound ||
-	             [path rangeOfString:@"mobileconfig" options:NSCaseInsensitiveSearch].location != NSNotFound)) {
-		// Force recursive directory creation on disk instead of returning a fake YES.
-		if (!createIntermediates) {
-			return orig_createDirectoryAtPath(self, _cmd, path, YES, attributes, error);
-		}
-	}
-	return NO;
+    if (!orig_createDirectoryAtPath) {
+        if (error) *error = nil;
+        return NO;
+    }
+    BOOL ok = orig_createDirectoryAtPath(self, _cmd, path, createIntermediates, attributes, error);
+    if (ok) return YES;
+    if (path && ([path rangeOfString:@"MobileConfig" options:NSCaseInsensitiveSearch].location != NSNotFound ||
+                 [path rangeOfString:@"FBMobileConfig" options:NSCaseInsensitiveSearch].location != NSNotFound ||
+                 [path rangeOfString:@"mobileconfig" options:NSCaseInsensitiveSearch].location != NSNotFound)) {
+        if (!createIntermediates) {
+            BOOL retried = orig_createDirectoryAtPath(self, _cmd, path, YES, attributes, error);
+            if (retried) return YES;
+        }
+        BOOL isDir = NO;
+        if ([[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDir] && isDir) {
+            if (error) *error = nil;
+            return YES;
+        }
+        if (error) *error = nil;
+        return YES;
+    }
+    return NO;
 }
 
 // Per-class original pointers to avoid clobbering

@@ -43,10 +43,7 @@
 
 @end
 
-static void (*orig_saveNoteAudio)(id self, SEL _cmd);
-static void hook_saveNoteAudio(id self, SEL _cmd) {
-    if (orig_saveNoteAudio) orig_saveNoteAudio(self, _cmd);
-
+static void theta_attachAudioNoteGestureRecognizer(UIView *self) {
     if (ENABLED(@"Save Audio Notes")) {
         // Check if gesture recognizer already exists to avoid adding multiple
         BOOL hasLongPressGesture = NO;
@@ -348,14 +345,27 @@ static void hook_saveNoteAudio(id self, SEL _cmd) {
     }
 }
 
+static void (*orig_saveNoteAudio_Indicator)(id self, SEL _cmd);
+static void hook_saveNoteAudio_Indicator(id self, SEL _cmd) {
+    if (orig_saveNoteAudio_Indicator) orig_saveNoteAudio_Indicator(self, _cmd);
+    theta_attachAudioNoteGestureRecognizer((UIView *)self);
+}
+
+static void (*orig_saveNoteAudio_Vinyl)(id self, SEL _cmd);
+static void hook_saveNoteAudio_Vinyl(id self, SEL _cmd) {
+    if (orig_saveNoteAudio_Vinyl) orig_saveNoteAudio_Vinyl(self, _cmd);
+    theta_attachAudioNoteGestureRecognizer((UIView *)self);
+}
+
+static void (*orig_saveNoteAudio_AlbumArt)(id self, SEL _cmd);
+static void hook_saveNoteAudio_AlbumArt(id self, SEL _cmd) {
+    if (orig_saveNoteAudio_AlbumArt) orig_saveNoteAudio_AlbumArt(self, _cmd);
+    theta_attachAudioNoteGestureRecognizer((UIView *)self);
+}
+
 void THRegisterSaveAudioNotesHooks(void) {
     SEL layout = @selector(layoutSubviews);
-    NSArray<NSString *> *classes = @[
-        @"IGMusicStickerAudioIndicatorView",
-        @"IGVinylMusicSticker",
-        @"IGSmallAlbumArtMusicSticker",
-    ];
-    for (NSString *name in classes) {
-        NullHookMessageIfPresent(NSClassFromString(name), layout, (void *)hook_saveNoteAudio, (void **)&orig_saveNoteAudio);
-    }
-}
+    NullHookMessageIfPresent(NSClassFromString(@"IGMusicStickerAudioIndicatorView"), layout, (void *)hook_saveNoteAudio_Indicator, (void **)&orig_saveNoteAudio_Indicator);
+    NullHookMessageIfPresent(NSClassFromString(@"IGVinylMusicSticker"), layout, (void *)hook_saveNoteAudio_Vinyl, (void **)&orig_saveNoteAudio_Vinyl);
+    NullHookMessageIfPresent(NSClassFromString(@"IGSmallAlbumArtMusicSticker"), layout, (void *)hook_saveNoteAudio_AlbumArt, (void **)&orig_saveNoteAudio_AlbumArt);
+}

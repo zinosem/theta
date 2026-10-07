@@ -108,6 +108,9 @@ static NSInteger hook_IGTabBarStyleForLauncherSet(NSInteger set) {
 }
 
 static BOOL theta_tryInstallLiquidGlassTabBarCSymbolHooks(void) {
+#if defined(SIDELOAD)
+    return NO;
+#endif
     static BOOL floatingDone = NO;
     static BOOL dynamicDone = NO;
     static BOOL enhancedDone = NO;

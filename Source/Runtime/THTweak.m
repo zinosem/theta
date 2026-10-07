@@ -195,7 +195,6 @@ static void ObserveAppLifecycle(void) {
 __attribute__((constructor))
 static void ThetaLoad(void) {
 #ifdef SIDELOAD
-    install_fishhook_rebindings();
     RunSideloadSetupOnce();
     dispatch_async(dispatch_get_main_queue(), ^{ RunSideloadSetupOnce(); });
 #endif
@@ -210,13 +209,12 @@ static void ThetaLoad(void) {
     NSString *appVer = appVersion ?: @"";
     NSLog(@"Theta %@ | Instagram %s | Hello!", thetaProject, appVer.UTF8String);
 
-    [ThetaHelper cleanupTemporaryMediaFiles];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
+        [ThetaHelper cleanupTemporaryMediaFiles];
+    });
 
     dispatch_async(dispatch_get_main_queue(), ^{
         ObserveAppLifecycle();
-    });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-        [THProfileAnalyzerViewController prefetchProfileImageIfNeeded];
     });
 }
 

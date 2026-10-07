@@ -49,6 +49,9 @@ bool ThetaSubstrateLoad(void) {
 }
 
 void ThetaMSHookFunction(void *symbol, void *replace, void **result) {
+#if defined(SIDELOAD)
+    return;
+#endif
     if (!symbol || !replace) return;
     if (!ThetaSubstrateLoad() || !g_MSHookFunction) return;
     g_MSHookFunction(symbol, replace, result);

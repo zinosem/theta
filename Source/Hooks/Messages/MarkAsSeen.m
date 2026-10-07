@@ -1348,30 +1348,6 @@ static void hook_listVC_viewDidAppear(id self, SEL _cmd, BOOL animated) {
 	}
 }
 
-static void (*orig_navItem_setRightBarButtonItems)(id self, SEL _cmd, id arg1);
-static void hook_navItem_setRightBarButtonItems(id self, SEL _cmd, id arg1) {
-	NSMutableArray *new_items = [arg1 mutableCopy] ?: [NSMutableArray array];
-	id threadVC = theta_threadVCFromWindow();
-	BOOL isThreadItem = NO;
-	@try {
-		isThreadItem = threadVC && [threadVC navigationItem] == self;
-	} @catch (__unused NSException *e) {
-		isThreadItem = NO;
-	}
-	if (isThreadItem && ENABLED(@"Mark As Seen")) {
-		@try {
-			UIView *host = nil;
-			@try {
-				id nav = ThetaValueForKey(threadVC, @"navigationController");
-				if (nav) host = ThetaValueForKey(nav, @"navigationBar");
-				if (!host) host = ThetaValueForKey(threadVC, @"view");
-			} @catch (__unused NSException *e) {}
-			theta_insertSeenBarButtonItems(new_items, host ?: self, YES);
-		} @catch (__unused NSException *e) {}
-	}
-	if (orig_navItem_setRightBarButtonItems) orig_navItem_setRightBarButtonItems(self, _cmd, new_items);
-}
-
 static void ThetaHookShouldUpdateLastSeen(void) {
 	SEL sel = @selector(shouldUpdateLastSeenMessage);
 	const char *names[] = {
@@ -1394,7 +1370,6 @@ void THRegisterMarkAsSeenThreadAndReactionHooks(void) {
 	NullHookMessageIfPresent(s_threadVCClass(), @selector(viewDidAppear:), (void *)hook_threadViewDidAppear, &orig_threadViewDidAppear);
 	NullHookMessageIfPresent(s_messageListVCClass(), @selector(viewDidAppear:), (void *)hook_listVC_viewDidAppear, &orig_listVC_viewDidAppear);
 	NullHookMessageIfPresent(objc_getClass("IGTallNavigationBarView"), @selector(setRightBarButtonItems:), (void *)hook_rightBarButtonItems, &orig_rightBarButtonItems);
-	NullHookMessageIfPresent([UINavigationItem class], @selector(setRightBarButtonItems:), (void *)hook_navItem_setRightBarButtonItems, &orig_navItem_setRightBarButtonItems);
 
 	Class reaction = s_reactionControllerClass();
 	NullHookMessageIfPresent(reaction, @selector(messageReactionSelectionViewController:didToggleEmoji:isSelected:isSuperReact:actionSource:bottomSheetSessionId:), (void *)hook_messageReactionSelection5, &orig_messageReactionSelection5);
