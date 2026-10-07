@@ -19,6 +19,31 @@ static BOOL hook_screen_captured(id self, SEL _cmd) {
     return orig_screen_captured ? orig_screen_captured(self, _cmd) : NO;
 }
 
+static BOOL (*orig_screen_privateIsCaptured)(id self, SEL _cmd);
+static BOOL hook_screen_privateIsCaptured(id self, SEL _cmd) {
+    if (ENABLED(@"Screenshot Suppression")) {
+        return NO;
+    }
+    return orig_screen_privateIsCaptured ? orig_screen_privateIsCaptured(self, _cmd) : NO;
+}
+
+static void (*orig_screen_setCaptured)(id self, SEL _cmd, BOOL captured);
+static void hook_screen_setCaptured(id self, SEL _cmd, BOOL captured) {
+    if (ENABLED(@"Screenshot Suppression")) {
+        if (orig_screen_setCaptured) orig_screen_setCaptured(self, _cmd, NO);
+        return;
+    }
+    if (orig_screen_setCaptured) orig_screen_setCaptured(self, _cmd, captured);
+}
+
+static id (*orig_screen_mirroredScreen)(id self, SEL _cmd);
+static id hook_screen_mirroredScreen(id self, SEL _cmd) {
+    if (ENABLED(@"Screenshot Suppression")) {
+        return nil;
+    }
+    return orig_screen_mirroredScreen ? orig_screen_mirroredScreen(self, _cmd) : nil;
+}
+
 #pragma mark - IGScreenCaptureProtectionViewProvider Hooks
 
 static void (*orig_screenshotSuppression_setProtected)(id self, SEL _cmd, BOOL isProtected);
@@ -154,6 +179,13 @@ static void hook_ThreadVC_screenCaptureStateDidChange(id self, SEL _cmd, id arg1
     }
 }
 
+static void (*orig_ThreadVC_screenCaptureStateDidChangeNotif)(id self, SEL _cmd, id arg1);
+static void hook_ThreadVC_screenCaptureStateDidChangeNotif(id self, SEL _cmd, id arg1) {
+    if (!ENABLED(@"Screenshot Suppression")) {
+        if (orig_ThreadVC_screenCaptureStateDidChangeNotif) orig_ThreadVC_screenCaptureStateDidChangeNotif(self, _cmd, arg1);
+    }
+}
+
 static void (*orig_ThreadVC_screenCapturedDidChange)(id self, SEL _cmd);
 static void hook_ThreadVC_screenCapturedDidChange(id self, SEL _cmd) {
     if (!ENABLED(@"Screenshot Suppression")) {
@@ -219,6 +251,29 @@ static void hook_directObs_screenshotObserverDidSeeScreenRecord(id self, SEL _cm
     }
 }
 
+#pragma mark - Generic Vanish / Ephemeral Screenshot Tracker Handlers
+
+static void (*orig_tracker_onTakenScreenshot)(id self, SEL _cmd);
+static void hook_tracker_onTakenScreenshot(id self, SEL _cmd) {
+    if (!ENABLED(@"Screenshot Suppression")) {
+        if (orig_tracker_onTakenScreenshot) orig_tracker_onTakenScreenshot(self, _cmd);
+    }
+}
+
+static void (*orig_tracker_didTakeScreenshot)(id self, SEL _cmd);
+static void hook_tracker_didTakeScreenshot(id self, SEL _cmd) {
+    if (!ENABLED(@"Screenshot Suppression")) {
+        if (orig_tracker_didTakeScreenshot) orig_tracker_didTakeScreenshot(self, _cmd);
+    }
+}
+
+static void (*orig_tracker_screenCaptureStateDidChange)(id self, SEL _cmd, id arg1);
+static void hook_tracker_screenCaptureStateDidChange(id self, SEL _cmd, id arg1) {
+    if (!ENABLED(@"Screenshot Suppression")) {
+        if (orig_tracker_screenCaptureStateDidChange) orig_tracker_screenCaptureStateDidChange(self, _cmd, arg1);
+    }
+}
+
 #pragma mark - Registration
 
 void THRegisterScreenshotProtectionProviderHooks(void) {
@@ -239,6 +294,9 @@ void THRegisterScreenshotObserverHook(void) {
     if (screenCls) {
         NullHookMessageIfPresent(screenCls, @selector(isCaptured), (void *)hook_screen_isCaptured, &orig_screen_isCaptured);
         NullHookMessageIfPresent(screenCls, NSSelectorFromString(@"captured"), (void *)hook_screen_captured, &orig_screen_captured);
+        NullHookMessageIfPresent(screenCls, NSSelectorFromString(@"_isCaptured"), (void *)hook_screen_privateIsCaptured, &orig_screen_privateIsCaptured);
+        NullHookMessageIfPresent(screenCls, NSSelectorFromString(@"_setCaptured:"), (void *)hook_screen_setCaptured, &orig_screen_setCaptured);
+        NullHookMessageIfPresent(screenCls, @selector(mirroredScreen), (void *)hook_screen_mirroredScreen, &orig_screen_mirroredScreen);
     }
 
     // 2. Hook IGScreenshotObserver
@@ -268,7 +326,7 @@ void THRegisterScreenshotObserverHook(void) {
         NullHookMessageIfPresent(threadVCClass, @selector(_userDidTakeScreenshotNotification:), (void *)hook_ThreadVC_userDidTakeScreenshotNotif, &orig_ThreadVC_userDidTakeScreenshotNotif);
         NullHookMessageIfPresent(threadVCClass, @selector(_didTakeScreenshot), (void *)hook_ThreadVC_didTakeScreenshot, &orig_ThreadVC_didTakeScreenshot);
         NullHookMessageIfPresent(threadVCClass, NSSelectorFromString(@"_screenCaptureStateDidChange:"), (void *)hook_ThreadVC_screenCaptureStateDidChange, &orig_ThreadVC_screenCaptureStateDidChange);
-        NullHookMessageIfPresent(threadVCClass, NSSelectorFromString(@"_screenCaptureStateDidChangeNotification:"), (void *)hook_ThreadVC_screenCaptureStateDidChange, &orig_ThreadVC_screenCaptureStateDidChange);
+        NullHookMessageIfPresent(threadVCClass, NSSelectorFromString(@"_screenCaptureStateDidChangeNotification:"), (void *)hook_ThreadVC_screenCaptureStateDidChangeNotif, &orig_ThreadVC_screenCaptureStateDidChangeNotif);
         NullHookMessageIfPresent(threadVCClass, NSSelectorFromString(@"_screenCapturedDidChange"), (void *)hook_ThreadVC_screenCapturedDidChange, &orig_ThreadVC_screenCapturedDidChange);
         NullHookMessageIfPresent(threadVCClass, NSSelectorFromString(@"_userDidScreenRecord:"), (void *)hook_ThreadVC_userDidScreenRecord, &orig_ThreadVC_userDidScreenRecord);
         NullHookMessageIfPresent(threadVCClass, NSSelectorFromString(@"screenshotObserverDidSeeScreenRecord:"), (void *)hook_ThreadVC_screenshotObserverDidSeeScreenRecord, &orig_ThreadVC_screenshotObserverDidSeeScreenRecord);
@@ -293,8 +351,8 @@ void THRegisterScreenshotObserverHook(void) {
         @"IGDirectThreadScreenshotObserver"
     ]);
     if (trackerClass) {
-        NullHookMessageIfPresent(trackerClass, @selector(_onTakenScreenshot), (void *)hook_directObs_onTakenScreenshot, &orig_directObs_onTakenScreenshot);
-        NullHookMessageIfPresent(trackerClass, @selector(_didTakeScreenshot), (void *)hook_directObs_didTakeScreenshot, &orig_directObs_didTakeScreenshot);
-        NullHookMessageIfPresent(trackerClass, NSSelectorFromString(@"_screenCaptureStateDidChange:"), (void *)hook_directObs_screenCaptureStateDidChange, &orig_directObs_screenCaptureStateDidChange);
+        NullHookMessageIfPresent(trackerClass, @selector(_onTakenScreenshot), (void *)hook_tracker_onTakenScreenshot, &orig_tracker_onTakenScreenshot);
+        NullHookMessageIfPresent(trackerClass, @selector(_didTakeScreenshot), (void *)hook_tracker_didTakeScreenshot, &orig_tracker_didTakeScreenshot);
+        NullHookMessageIfPresent(trackerClass, NSSelectorFromString(@"_screenCaptureStateDidChange:"), (void *)hook_tracker_screenCaptureStateDidChange, &orig_tracker_screenCaptureStateDidChange);
     }
 }

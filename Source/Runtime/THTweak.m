@@ -6,6 +6,11 @@ static void InitializeHooks(void) {
     if (hooksInitialized) return;
     hooksInitialized = YES;
 
+    [[NSUserDefaults standardUserDefaults] registerDefaults:@{
+        @"Screenshot Suppression_Enabled": @YES,
+        @"Seen Receipts Stay Local_Enabled": @YES
+    }];
+
     THRegisterStoryAutoAdvanceHooks();
     THRegisterTabBarHooks();
     THRegisterExternalBrowserHooks();
