@@ -26,8 +26,8 @@ static id hook_screenshotSuppression_initProtected(id self, SEL _cmd, BOOL isPro
     return orig_screenshotSuppression_initProtected ? orig_screenshotSuppression_initProtected(self, _cmd, NO) : self;
 }
 
-static void (*orig_screenRecord)(id self, SEL _cmd, id state);
-static void hook_screenRecord(id self, SEL _cmd, id state) {
+static void (*orig_screenRecord)(id self, SEL _cmd, NSInteger state);
+static void hook_screenRecord(id self, SEL _cmd, NSInteger state) {
     if (!ENABLED(@"Screenshot Suppression")) {
         if (orig_screenRecord) orig_screenRecord(self, _cmd, state);
         return;

@@ -1,137 +1,6 @@
-static void (*orig_messageCache)(id self, SEL _cmd, id update);
-static void hook_messageCache(id self, SEL _cmd, id update) {
-	if (!ENABLED(@"Keep Deleted Messages")) {
-		if (orig_messageCache) orig_messageCache(self, _cmd, update);
-		return;
-	}
-
-	if (update) {
-		id retained = update;
-		static char kThetaRetainedUpdateKey;
-		objc_setAssociatedObject(self, &kThetaRetainedUpdateKey, retained, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-
-		NSString *debugDescription = [retained respondsToSelector:@selector(debugDescription)] ? [retained debugDescription] : [retained description];
-
-		id cacheThreadUpdate = nil;
-		if ([retained isKindOfClass:[NSArray class]] && [(NSArray *)retained count] > 0) {
-			cacheThreadUpdate = [(NSArray *)retained firstObject];
-		} else {
-			cacheThreadUpdate = retained;
-		}
-
-		id threadUpdates = nil;
-		if (cacheThreadUpdate && [cacheThreadUpdate respondsToSelector:@selector(valueForKey:)]) {
-			threadUpdates = [cacheThreadUpdate valueForKey:@"threadUpdates"];
-		}
-
-		id threadUpdateObj = nil;
-		if ([threadUpdates isKindOfClass:[NSArray class]] && [(NSArray *)threadUpdates count] > 0) {
-			threadUpdateObj = [(NSArray *)threadUpdates firstObject];
-		}
-
-		if (threadUpdateObj) {
-			static char kThetaRetainedThreadUpdateKey;
-			objc_setAssociatedObject(self, &kThetaRetainedThreadUpdateKey, threadUpdateObj, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-			@try {
-				id messageUpdate = [threadUpdateObj valueForKey:@"_messageUpdate"];
-				if (messageUpdate) {
-					NSArray *removeKeys = [messageUpdate valueForKey:@"_removeMessages_messageKeys"];
-					if (removeKeys.count == 0) {
-						if (orig_messageCache) orig_messageCache(self, _cmd, retained);
-						return;
-					}
-
-					BOOL didSaveAny = NO;
-					for (id messageKey in removeKeys) {
-						if (![messageKey respondsToSelector:@selector(valueForKey:)]) continue;
-						NSString *MsgKey = [messageKey valueForKey:@"_messageServerId"];
-						if (MsgKey && [MsgKey isKindOfClass:[NSString class]] && MsgKey.length > 0) {
-							[[MessagesManager sharedManager] saveDeletedMessageWithID:MsgKey];
-							didSaveAny = YES;
-						}
-					}
-					if (didSaveAny) {
-						return;
-					}
-				}
-			} @catch (NSException *e) {
-				NSLog(@"Error accessing IGDirectThreadUpdate: %@", e);
-			}
-		}
-	}
-
-	if (orig_messageCache) orig_messageCache(self, _cmd, update);
-}
-
-/* static void (*orig_directMessageCell)(id self, SEL _cmd, id viewModel, id specFactory, id launcher);
- static void hook_directMessageCell(id self, SEL _cmd, id viewModel, id specFactory, id launcher) {
- 	orig_directMessageCell(self, _cmd, viewModel, specFactory, launcher);
-
- 	if (![viewModel conformsToProtocol:@protocol(IGDirectMessageViewModelProtocol)]) return;
- 	IGDirectUIMessageMetadata *metadata = [(id<IGDirectMessageViewModelProtocol>)viewModel messageMetadata];
- 	NSString *serverId = metadata.key.serverId;
-
- 	if (![[MessagesManager sharedManager] messageExistsWithID:serverId]) return;
-
- 	UIButton *deletedButton = [UIButton buttonWithType:UIButtonTypeSystem];
- 	[deletedButton setImage:[UIImage systemImageNamed:@"trash.circle"] forState:UIControlStateNormal];
- 	[deletedButton setTintColor:UIColor.systemRedColor];
-	deletedButton.translatesAutoresizingMaskIntoConstraints = NO;
-	static char kThetaDeletedServerIdKey;
-	objc_setAssociatedObject(deletedButton, &kThetaDeletedServerIdKey, serverId, OBJC_ASSOCIATION_COPY_NONATOMIC);
-
- 	UIView *container = nil;
- 	if ([self respondsToSelector:@selector(contentViewForVisualMessageViewerPresentation)]) {
- 		#pragma clang diagnostic push
- 		#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
- 		container = [self performSelector:@selector(contentViewForVisualMessageViewerPresentation)];
- 		#pragma clang diagnostic pop
- 	}
- 	if (!container && [self respondsToSelector:@selector(contentView)]) {
- 		container = [self valueForKey:@"contentView"];
- 	}
- 	if (!container && [self isKindOfClass:[UIView class]]) {
- 		container = (UIView *)self;
- 	}
- 	if (!container) return;
-
- 	for (UIView *sub in container.subviews) {
- 		if ([sub isKindOfClass:[UIButton class]] && sub.tag == 9911) { return; }
- 	}
- 	deletedButton.tag = 9911;
- 	ThetaSetCaptureHiding(deletedButton);
- 	[container addSubview:deletedButton];
-
- 	[NSLayoutConstraint activateConstraints:@[
- 		[deletedButton.centerYAnchor constraintEqualToAnchor:container.centerYAnchor],
- 		[deletedButton.trailingAnchor constraintEqualToAnchor:container.trailingAnchor constant:30],
- 		[deletedButton.widthAnchor constraintEqualToConstant:20],
- 		[deletedButton.heightAnchor constraintEqualToConstant:20],
- 	]];
-
-	if (@available(iOS 14.0, *)) {
-		[deletedButton addAction:[UIAction actionWithHandler:^(__kindof UIAction * _Nonnull action) {
-			NSString *sid = objc_getAssociatedObject(deletedButton, &kThetaDeletedServerIdKey);
-			NSString *deletedMessageDate = [[MessagesManager sharedManager] dateForDeletedMessageWithID:sid];
-			UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"BHInsta, Hi" message:[NSString stringWithFormat:@"Message deleted at: %@", deletedMessageDate ?: @"Unknown"] preferredStyle:UIAlertControllerStyleAlert];
-			[alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
-			[topMostController() presentViewController:alert animated:YES completion:nil];
-		}] forControlEvents:UIControlEventTouchUpInside];
-	}
-	[deletedButton addTarget:self action:@selector(_thetaShowDeletedInfo:) forControlEvents:UIControlEventTouchUpInside];
-}*/
-
-static void _thetaShowDeletedInfo(id self, SEL _cmd, id sender) {
-	if (![sender isKindOfClass:[UIButton class]]) return;
-	UIButton *button = (UIButton *)sender;
-	static char kThetaDeletedServerIdKey;
-	NSString *sid = objc_getAssociatedObject(button, &kThetaDeletedServerIdKey);
-	if (sid.length == 0) return;
-	NSString *deletedMessageDate = [[MessagesManager sharedManager] dateForDeletedMessageWithID:sid];
-	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Deleted Message" message:[NSString stringWithFormat:@"Message deleted at: %@", deletedMessageDate ?: @"Unknown"] preferredStyle:UIAlertControllerStyleAlert];
-	[alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
-	[topMostController() presentViewController:alert animated:YES completion:nil];
-}
+#import "Include/ThetaHelper.h"
+#import "Include/MessagesManager.h"
+#import <UIKit/UIKit.h>
 
 static char kThetaOriginalBackgroundColorKey;
 static char kThetaProcessedMessageIdKey;
@@ -276,98 +145,6 @@ static void hook_directMessageCell_configure(id self, SEL _cmd, id viewModel, id
 	objc_setAssociatedObject(bubble, &kThetaProcessedMessageIdKey, serverId, OBJC_ASSOCIATION_COPY_NONATOMIC);
 }
 
-static void (*orig_messageCache2)(id self, SEL _cmd, id updates, id completion);
-static void hook_messageCache2(id self, SEL _cmd, id updates, id completion) {
-	if (!ENABLED(@"Keep Deleted Messages")) {
-		if (orig_messageCache2) orig_messageCache2(self, _cmd, updates, completion);
-		return;
-	}
-
-	BOOL shouldBlockUpdate = NO;
-
-	if (updates) {
-		id retained = updates;
-		static char kThetaRetainedUpdateKey;
-		objc_setAssociatedObject(self, &kThetaRetainedUpdateKey, retained, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-
-		NSString *debugDescription = [retained respondsToSelector:@selector(debugDescription)] ? [retained debugDescription] : [retained description];
-
-		id cacheThreadUpdate = nil;
-		if ([retained isKindOfClass:[NSArray class]] && [(NSArray *)retained count] > 0) {
-			cacheThreadUpdate = [(NSArray *)retained firstObject];
-		} else {
-			cacheThreadUpdate = retained;
-		}
-
-		id threadUpdates = nil;
-		if (cacheThreadUpdate && [cacheThreadUpdate respondsToSelector:@selector(valueForKey:)]) {
-			threadUpdates = [cacheThreadUpdate valueForKey:@"threadUpdates"];
-		}
-
-		id threadUpdateObj = nil;
-		if ([threadUpdates isKindOfClass:[NSArray class]] && [(NSArray *)threadUpdates count] > 0) {
-			threadUpdateObj = [(NSArray *)threadUpdates firstObject];
-		}
-
-		if (threadUpdateObj) {
-			static char kThetaRetainedThreadUpdateKey;
-			objc_setAssociatedObject(self, &kThetaRetainedThreadUpdateKey, threadUpdateObj, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-			@try {
-				id messageUpdate = [threadUpdateObj valueForKey:@"_messageUpdate"];
-				if (messageUpdate) {
-					NSArray *removeKeys = [messageUpdate valueForKey:@"_removeMessages_messageKeys"];
-					if (removeKeys.count == 0) {
-						// No messages to remove, proceed normally
-						if (orig_messageCache2) orig_messageCache2(self, _cmd, updates, completion);
-						return;
-					}
-
-					// Process all removeKeys to save deleted messages
-					BOOL allValid = YES;
-					for (id messageKey in removeKeys) {
-						NSString *serverId = nil;
-						@try {
-							serverId = [messageKey valueForKey:@"_messageServerId"];
-							if (!serverId) serverId = [messageKey valueForKey:@"serverId"];
-							if (!serverId) serverId = [messageKey valueForKey:@"_serverId"];
-						} @catch (__unused NSException *e) {}
-						if (!serverId || ![serverId isKindOfClass:[NSString class]] || serverId.length == 0) {
-							allValid = NO;
-							break;
-						}
-
-						[[MessagesManager sharedManager] saveDeletedMessageWithID:serverId];
-						shouldBlockUpdate = YES; // Mark that we should block this update
-					}
-
-					// If we found any invalid cases, proceed normally
-					if (!allValid) {
-						if (orig_messageCache2) orig_messageCache2(self, _cmd, updates, completion);
-						return;
-					}
-				}
-			} @catch (NSException *e) {
-				NSLog(@"Error accessing IGDirectThreadUpdate: %@", e);
-				// On error, proceed normally
-				if (orig_messageCache2) orig_messageCache2(self, _cmd, updates, completion);
-				return;
-			}
-		}
-	}
-
-	// If we successfully saved deleted messages, block the update
-	if (shouldBlockUpdate) {
-		if (completion) {
-			void (^blk)(void) = (void (^)(void))completion;
-			@try { blk(); } @catch (__unused NSException *e) {}
-		}
-		return;
-	}
-
-	// Otherwise, proceed with the original update
-	if (orig_messageCache2) orig_messageCache2(self, _cmd, updates, completion);
-}
-
 static void (*orig_messageCache3)(id self, SEL _cmd, id updates, id completion, id userAccess);
 static void hook_messageCache3(id self, SEL _cmd, id updates, id completion, id userAccess) {
 	if (!ENABLED(@"Keep Deleted Messages")) {
@@ -375,99 +152,57 @@ static void hook_messageCache3(id self, SEL _cmd, id updates, id completion, id 
 		return;
 	}
 
-	BOOL shouldBlockUpdate = NO;
-
 	if (updates) {
-		id retained = updates;
-		static char kThetaRetainedUpdateKey;
-		objc_setAssociatedObject(self, &kThetaRetainedUpdateKey, retained, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		@try {
+			id cacheThreadUpdate = nil;
+			if ([updates isKindOfClass:[NSArray class]] && [(NSArray *)updates count] > 0) {
+				cacheThreadUpdate = [(NSArray *)updates firstObject];
+			} else {
+				cacheThreadUpdate = updates;
+			}
 
-		NSString *debugDescription = [retained respondsToSelector:@selector(debugDescription)] ? [retained debugDescription] : [retained description];
+			id threadUpdates = nil;
+			if (cacheThreadUpdate && [cacheThreadUpdate respondsToSelector:@selector(valueForKey:)]) {
+				threadUpdates = [cacheThreadUpdate valueForKey:@"threadUpdates"];
+			}
 
-		id cacheThreadUpdate = nil;
-		if ([retained isKindOfClass:[NSArray class]] && [(NSArray *)retained count] > 0) {
-			cacheThreadUpdate = [(NSArray *)retained firstObject];
-		} else {
-			cacheThreadUpdate = retained;
-		}
+			id threadUpdateObj = nil;
+			if ([threadUpdates isKindOfClass:[NSArray class]] && [(NSArray *)threadUpdates count] > 0) {
+				threadUpdateObj = [(NSArray *)threadUpdates firstObject];
+			}
 
-		id threadUpdates = nil;
-		if (cacheThreadUpdate && [cacheThreadUpdate respondsToSelector:@selector(valueForKey:)]) {
-			threadUpdates = [cacheThreadUpdate valueForKey:@"threadUpdates"];
-		}
-
-		id threadUpdateObj = nil;
-		if ([threadUpdates isKindOfClass:[NSArray class]] && [(NSArray *)threadUpdates count] > 0) {
-			threadUpdateObj = [(NSArray *)threadUpdates firstObject];
-		}
-
-		if (threadUpdateObj) {
-			static char kThetaRetainedThreadUpdateKey;
-			objc_setAssociatedObject(self, &kThetaRetainedThreadUpdateKey, threadUpdateObj, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-			@try {
+			if (threadUpdateObj) {
 				id messageUpdate = [threadUpdateObj valueForKey:@"_messageUpdate"];
 				if (messageUpdate) {
 					NSArray *removeKeys = [messageUpdate valueForKey:@"_removeMessages_messageKeys"];
-					if (removeKeys.count == 0) {
-						// No messages to remove, proceed normally
-						if (orig_messageCache3) orig_messageCache3(self, _cmd, updates, completion, userAccess);
-						return;
-					}
+					if ([removeKeys isKindOfClass:[NSArray class]]) {
+						for (id messageKey in removeKeys) {
+							NSString *serverId = nil;
+							@try {
+								serverId = [messageKey valueForKey:@"_messageServerId"];
+								if (!serverId) serverId = [messageKey valueForKey:@"serverId"];
+								if (!serverId) serverId = [messageKey valueForKey:@"_serverId"];
+							} @catch (__unused NSException *e) {}
 
-					// Process all removeKeys to save deleted messages
-					BOOL allValid = YES;
-					for (id messageKey in removeKeys) {
-						if (![messageKey isKindOfClass:NSClassFromString(@"IGDirectMessageUpdateMessageKey")]) {
-							// Invalid message key format, proceed normally
-							allValid = NO;
-							break;
+							if (serverId && [serverId isKindOfClass:[NSString class]] && serverId.length > 0) {
+								[[MessagesManager sharedManager] saveDeletedMessageWithID:serverId];
+							}
 						}
-						IGDirectMessageUpdateMessageKey *updateKey = messageKey;
-
-						id serverIdValue = [updateKey valueForKey:@"_messageServerId"];
-						if (!serverIdValue) {
-							// No server ID, proceed normally
-							allValid = NO;
-							break;
-						}
-
-						NSString *MsgKey = serverIdValue;
-						[[MessagesManager sharedManager] saveDeletedMessageWithID:MsgKey];
-						shouldBlockUpdate = YES; // Mark that we should block this update
-					}
-
-					// If we found any invalid cases, proceed normally
-					if (!allValid) {
-						if (orig_messageCache3) orig_messageCache3(self, _cmd, updates, completion, userAccess);
-						return;
 					}
 				}
-			} @catch (NSException *e) {
-				NSLog(@"Error accessing IGDirectThreadUpdate: %@", e);
-				// On error, proceed normally
-				if (orig_messageCache3) orig_messageCache3(self, _cmd, updates, completion, userAccess);
-				return;
 			}
+		} @catch (NSException *e) {
+			NSLog(@"[Theta] Error accessing IGDirectThreadUpdate: %@", e);
 		}
 	}
 
-	// If we successfully saved deleted messages, block the update
-	if (shouldBlockUpdate) {
-		if (completion) {
-			void (^blk)(void) = (void (^)(void))completion;
-			@try { blk(); } @catch (__unused NSException *e) {}
-		}
-		return;
-	}
-
-	// Otherwise, proceed with the original update
+	// Always invoke original update so Instagram's internal cache state and completion block run normally
 	if (orig_messageCache3) orig_messageCache3(self, _cmd, updates, completion, userAccess);
 }
 
 void THRegisterKeepDeletedMessagesHooks(void) {
 	Class applicator = objc_getClass("IGDirectCacheUpdatesApplicator");
 	NullHookMessageIfPresent(applicator, @selector(_applyThreadUpdates:completion:userAccess:), (void *)hook_messageCache3, &orig_messageCache3);
-	NullHookMessageIfPresent(applicator, @selector(_applyThreadUpdates:completion:), (void *)hook_messageCache2, &orig_messageCache2);
 
 	Class messageCell = ThetaFirstClass(@[
 		@"_TtC19IGDirectMessageCell19IGDirectMessageCell",

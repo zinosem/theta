@@ -1,14 +1,13 @@
-static BOOL (*orig_recentSearchStore)(id self, SEL _cmd, id item);
-static BOOL hook_recentSearchStore(id self, SEL _cmd, id item) {
+static void (*orig_recentSearchStore)(id self, SEL _cmd, id item);
+static void hook_recentSearchStore(id self, SEL _cmd, id item) {
     if (ENABLED(@"Hide Recent Searches")) {
         if ([item isKindOfClass:NSClassFromString(@"IGUser")]) {
-            return NO;
+            return;
         }
     }
     if (orig_recentSearchStore) {
-        return orig_recentSearchStore(self, _cmd, item);
+        orig_recentSearchStore(self, _cmd, item);
     }
-    return YES;
 }
 
 void THRegisterHideSearchesRecentStoreHooks(void) {
