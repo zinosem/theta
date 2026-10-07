@@ -147,6 +147,10 @@ static BOOL thetaStoryMarkItemAsSeen(IGStoryFullscreenCell *cell, id item) {
         NSLog(@"[Theta] StoryGhost: no viewer for didMarkItemAsSeen (viewer=%@)", NSStringFromClass([viewer class]));
         return NO;
     }
+    if (!section) {
+        @try { section = [viewer valueForKey:@"currentSectionController"]; } @catch (__unused NSException *e) {}
+        if (!section) @try { section = [viewer valueForKey:@"sectionController"]; } @catch (__unused NSException *e) {}
+    }
     @try {
         ((void (*)(id, SEL, id, id))objc_msgSend)(viewer, sel, section, item);
         return YES;
@@ -697,8 +701,23 @@ static void thetaLocalSeenMarkCurrent(IGStoryFullscreenCell *self) {
     @try {
         if ([firstDelegate respondsToSelector:@selector(currentStoryItem)])
             currentItem = [firstDelegate performSelector:@selector(currentStoryItem)];
+        else if ([firstDelegate respondsToSelector:@selector(valueForKey:)])
+            currentItem = [firstDelegate valueForKey:@"currentStoryItem"];
     } @catch (__unused NSException *e) {}
-    if (!currentItem) return;
+    if (!currentItem && secondDelegate) {
+        @try {
+            if ([secondDelegate respondsToSelector:@selector(currentStoryItem)])
+                currentItem = [secondDelegate performSelector:@selector(currentStoryItem)];
+            else if ([secondDelegate respondsToSelector:@selector(valueForKey:)])
+                currentItem = [secondDelegate valueForKey:@"currentStoryItem"];
+        } @catch (__unused NSException *e) {}
+    }
+    if (!currentItem) {
+        if (ENABLED(@"Show Banners")) {
+            [ThetaHelper showToastWithTitle:@"Mark failed" subtitle:@"Story item not found." icon:[UIImage systemImageNamed:@"exclamationmark.triangle"] autoHide:3 openURL:nil];
+        }
+        return;
+    }
 
     THStorySeenReceiptNetworkGuardEnterWithContext(firstDelegate, secondDelegate);
     BOOL ghostOn = ENABLED(@"Story Ghost");
@@ -1104,41 +1123,75 @@ static void presentMentionsAlert(IGStoryFullscreenCell *self) {
 }
 
 static void setupButtons(IGStoryFullscreenCell *self) {
-    id firstDelegate = nil;
-    @try {
-        if ([self respondsToSelector:@selector(delegate)]) {
-            firstDelegate = [self performSelector:@selector(delegate)];
-        } else if ([self respondsToSelector:@selector(valueForKey:)]) {
-            id container = [self valueForKey:@"containerView"];
-            if (container && [container respondsToSelector:@selector(valueForKey:)]) {
-                firstDelegate = [container valueForKey:@"delegate"];
+    if (!self || ![self isKindOfClass:[UIView class]]) return;
+
+    UIView *hostView = nil;
+    if ([self respondsToSelector:@selector(contentView)]) {
+        @try { hostView = [self contentView]; } @catch (__unused NSException *e) {}
+    }
+    if (!hostView) hostView = (UIView *)self;
+
+    id firstDelegate = thetaStorySectionControllerFromCell(self);
+    if (!firstDelegate) {
+        @try {
+            if ([self respondsToSelector:@selector(delegate)]) {
+                firstDelegate = [self performSelector:@selector(delegate)];
             }
+        } @catch (__unused NSException *e) {}
+    }
+    if (!firstDelegate) {
+        id container = ThetaValueForKey(self, @"containerView");
+        if (container) {
+            @try {
+                if ([container respondsToSelector:@selector(delegate)]) {
+                    firstDelegate = [container performSelector:@selector(delegate)];
+                } else {
+                    firstDelegate = ThetaValueForKey(container, @"delegate");
+                }
+            } @catch (__unused NSException *e) {}
         }
-    } @catch (__unused NSException *e) {}
-    if (!firstDelegate) return;
+    }
+
+    id viewer = thetaStoryViewerFromCell(self);
+
     id viewModel = nil;
-    @try { viewModel = [firstDelegate valueForKey:@"viewModel"]; } @catch (__unused NSException *e) {}
-    if (!viewModel) return;
+    if (firstDelegate) {
+        @try { viewModel = [firstDelegate valueForKey:@"viewModel"]; } @catch (__unused NSException *e) {}
+        if (!viewModel) @try { viewModel = [firstDelegate valueForKey:@"sectionViewModel"]; } @catch (__unused NSException *e) {}
+    }
+    if (!viewModel && viewer) {
+        @try { viewModel = [viewer valueForKey:@"currentViewModel"]; } @catch (__unused NSException *e) {}
+        if (!viewModel) @try { viewModel = [viewer valueForKey:@"viewModel"]; } @catch (__unused NSException *e) {}
+    }
+
     IGUser *owner = nil;
-    @try { owner = [viewModel valueForKey:@"owner"]; } @catch (__unused NSException *e) {}
-    if (!owner) return;
+    if (viewModel) {
+        @try { owner = [viewModel valueForKey:@"owner"]; } @catch (__unused NSException *e) {}
+        if (!owner) @try { owner = [viewModel valueForKey:@"user"]; } @catch (__unused NSException *e) {}
+    }
+    if (!owner && firstDelegate) {
+        @try { owner = [firstDelegate valueForKey:@"user"]; } @catch (__unused NSException *e) {}
+    }
 
     NSNumber *cellKey = @((uintptr_t)self);
-    NSString *ownerKey = thetaStoryOwnerKey(owner) ?: @"";
+    NSString *ownerKey = owner ? (thetaStoryOwnerKey(owner) ?: @"") : @"default_owner";
 
     id currentItem = nil;
-    @try {
-        if ([firstDelegate respondsToSelector:@selector(currentStoryItem)]) {
-            currentItem = [firstDelegate performSelector:@selector(currentStoryItem)];
-        } else if ([firstDelegate respondsToSelector:@selector(valueForKey:)]) {
-            currentItem = [firstDelegate valueForKey:@"currentStoryItem"];
-        }
-    } @catch (__unused NSException *e) {}
-    if (!currentItem) {
-        id viewer = thetaStoryViewerFromCell(self);
+    if (firstDelegate) {
+        @try {
+            if ([firstDelegate respondsToSelector:@selector(currentStoryItem)]) {
+                currentItem = [firstDelegate performSelector:@selector(currentStoryItem)];
+            } else if ([firstDelegate respondsToSelector:@selector(valueForKey:)]) {
+                currentItem = [firstDelegate valueForKey:@"currentStoryItem"];
+            }
+        } @catch (__unused NSException *e) {}
+    }
+    if (!currentItem && viewer) {
         @try {
             if ([viewer respondsToSelector:@selector(currentStoryItem)]) {
                 currentItem = [viewer performSelector:@selector(currentStoryItem)];
+            } else if ([viewer respondsToSelector:@selector(valueForKey:)]) {
+                currentItem = [viewer valueForKey:@"currentStoryItem"];
             }
         } @catch (__unused NSException *e) {}
     }
@@ -1155,26 +1208,46 @@ static void setupButtons(IGStoryFullscreenCell *self) {
         } @catch (__unused NSException *e) {}
     }
 
-    NSString *cacheKey = [NSString stringWithFormat:@"%@_%@", ownerKey, itemPk ?: @""];
+    NSString *cacheKey = [NSString stringWithFormat:@"%@_%@", ownerKey ?: @"", itemPk ?: @""];
 
     BOOL hasButtons = NO;
-    for (UIView *subview in self.subviews) {
+    for (UIView *subview in hostView.subviews) {
         if ([subview isKindOfClass:[UIButton class]] && subview.tag == kThetaStoryButtonTag) {
             hasButtons = YES;
             break;
         }
     }
+    if (!hasButtons && hostView != self) {
+        for (UIView *subview in self.subviews) {
+            if ([subview isKindOfClass:[UIButton class]] && subview.tag == kThetaStoryButtonTag) {
+                hasButtons = YES;
+                break;
+            }
+        }
+    }
 
     NSString *lastCacheKey = lastSetupOwnerForCell[cellKey];
     if (hasButtons && [lastCacheKey isKindOfClass:[NSString class]] && [lastCacheKey isEqualToString:cacheKey] && cacheKey.length > 0) {
+        for (UIView *subview in hostView.subviews) {
+            if ([subview isKindOfClass:[UIButton class]] && subview.tag == kThetaStoryButtonTag) {
+                [hostView bringSubviewToFront:subview];
+            }
+        }
         return;
     }
     lastSetupOwnerForCell[cellKey] = cacheKey;
 
     // Only remove Theta-owned controls — never strip Instagram's UIButtons.
-    for (UIView *subview in [self.subviews copy]) {
+    for (UIView *subview in [hostView.subviews copy]) {
         if ([subview isKindOfClass:[UIButton class]] && subview.tag == kThetaStoryButtonTag) {
             [subview removeFromSuperview];
+        }
+    }
+    if (hostView != self) {
+        for (UIView *subview in [self.subviews copy]) {
+            if ([subview isKindOfClass:[UIButton class]] && subview.tag == kThetaStoryButtonTag) {
+                [subview removeFromSuperview];
+            }
         }
     }
 
@@ -1202,10 +1275,10 @@ static void setupButtons(IGStoryFullscreenCell *self) {
         UIColor *color = [NSKeyedUnarchiver unarchivedObjectOfClass:[UIColor class] fromData:data error:nil];
         if (color) localColor = color;
     } @catch (__unused NSException *exception) {}
-    UIImage *localIcon = [UIImage systemImageNamed:@"iphone"];
-    if (!localIcon) localIcon = [UIImage systemImageNamed:@"iphone.circle"];
-    if (!localIcon) localIcon = [UIImage systemImageNamed:@"internaldrive"];
-    UIButton *localSeenButton = [ThetaFloatingMediaButton buttonWithImage:localIcon tintColor:localColor];
+    UIButton *localSeenButton = [ThetaFloatingMediaButton buttonWithSystemImage:@"iphone" tintColor:localColor];
+    if (!localSeenButton.imageView.image) {
+        localSeenButton = [ThetaFloatingMediaButton buttonWithSystemImage:@"iphone.circle" tintColor:localColor];
+    }
     localSeenButton.tag = kThetaStoryButtonTag;
 
     BOOL downloadVideos = ENABLED(@"Save Media");
@@ -1288,17 +1361,17 @@ static void setupButtons(IGStoryFullscreenCell *self) {
     UIButton *previousButton = nil;
     for (UIButton *button in buttonStack) {
         ThetaSetCaptureHiding(button);
-        [self addSubview:button];
-        [self bringSubviewToFront:button];
+        [hostView addSubview:button];
+        [hostView bringSubviewToFront:button];
         [NSLayoutConstraint activateConstraints:@[
-            [button.trailingAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.trailingAnchor constant:-14],
+            [button.trailingAnchor constraintEqualToAnchor:hostView.safeAreaLayoutGuide.trailingAnchor constant:-14],
             [button.widthAnchor constraintEqualToConstant:38],
             [button.heightAnchor constraintEqualToConstant:38]
         ]];
 
         if (!previousButton) {
             [NSLayoutConstraint activateConstraints:@[
-                [button.bottomAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.bottomAnchor constant:-116]
+                [button.bottomAnchor constraintEqualToAnchor:hostView.safeAreaLayoutGuide.bottomAnchor constant:-116]
             ]];
         } else {
             [NSLayoutConstraint activateConstraints:@[
@@ -1488,6 +1561,16 @@ static void setupButtons(IGStoryFullscreenCell *self) {
             } @catch (__unused NSException *e) {}
             thetaStorySkipIfEnabled(firstDel);
         });
+    }
+}
+
+static void (*orig_storyGhost_layoutSubviews)(id self, SEL _cmd);
+static void hook_storyGhost_layoutSubviews(id self, SEL _cmd) {
+    if (orig_storyGhost_layoutSubviews) orig_storyGhost_layoutSubviews(self, _cmd);
+    @try {
+        setupButtons(self);
+    } @catch (NSException *exception) {
+        NSLog(@"[Theta] StoryGhost setupButtons layoutSubviews: %@", exception);
     }
 }
 
@@ -1685,10 +1768,11 @@ static void performStoryDownloadWithURL(NSURL *url) {
 void THRegisterStoryGhostHooks(void) {
     Class cellCls = ThetaFirstClass(@[ @"IGStoryFullscreenCell" ]);
     Class viewerCls = ThetaFirstClass(@[ @"IGStoryViewerViewController" ]);
+    NullHookMessageIfPresent(cellCls, @selector(layoutSubviews), (void *)hook_storyGhost_layoutSubviews, &orig_storyGhost_layoutSubviews);
     NullHookMessageIfPresent(cellCls, @selector(mediaView), (void *)hook_storyGhost, &orig_storyGhost);
     NullHookMessageIfPresent(viewerCls, @selector(fullscreenSectionController:didMarkItemAsSeen:), (void *)hook_storyGhost2, &orig_storyGhost2);
-    if (!orig_storyGhost) {
-        NSLog(@"[Theta] StoryGhost: mediaView hook missing orig — overlay may be unavailable");
+    if (!orig_storyGhost && !orig_storyGhost_layoutSubviews) {
+        NSLog(@"[Theta] StoryGhost: cell hooks missing orig — overlay may be unavailable");
     }
     if (!orig_storyGhost2) {
         NSLog(@"[Theta] StoryGhost: didMarkItemAsSeen hook missing orig — mark-seen actions are no-ops");
