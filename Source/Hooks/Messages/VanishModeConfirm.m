@@ -26,9 +26,26 @@ static void theta_runVanishModeConfirmation(void (^invokeOrig)(void)) {
     ]];
 }
 
-static void (*orig_handleBottomSwipeableScrollUpdate)(id self, SEL _cmd);
-static void hook_handleBottomSwipeableScrollUpdate(id self, SEL _cmd) {
-    theta_runVanishModeConfirmation(^{ if (orig_handleBottomSwipeableScrollUpdate) orig_handleBottomSwipeableScrollUpdate(self, _cmd); });
+static void (*orig_handleBottomSwipeableScrollUpdate0)(id self, SEL _cmd);
+static void hook_handleBottomSwipeableScrollUpdate0(id self, SEL _cmd) {
+    if (!ENABLED(@"Disappearing DM Confirmation")) {
+        if (orig_handleBottomSwipeableScrollUpdate0) orig_handleBottomSwipeableScrollUpdate0(self, _cmd);
+        return;
+    }
+    theta_runVanishModeConfirmation(^{
+        if (orig_handleBottomSwipeableScrollUpdate0) orig_handleBottomSwipeableScrollUpdate0(self, _cmd);
+    });
+}
+
+static void (*orig_handleBottomSwipeableScrollUpdate1)(id self, SEL _cmd, id update);
+static void hook_handleBottomSwipeableScrollUpdate1(id self, SEL _cmd, id update) {
+    if (!ENABLED(@"Disappearing DM Confirmation")) {
+        if (orig_handleBottomSwipeableScrollUpdate1) orig_handleBottomSwipeableScrollUpdate1(self, _cmd, update);
+        return;
+    }
+    theta_runVanishModeConfirmation(^{
+        if (orig_handleBottomSwipeableScrollUpdate1) orig_handleBottomSwipeableScrollUpdate1(self, _cmd, update);
+    });
 }
 
 void THRegisterVanishModeConfirmationHooks(void) {
@@ -39,8 +56,11 @@ void THRegisterVanishModeConfirmationHooks(void) {
     ]);
     if (!c)
         return;
-    NullHookMessageIfPresent(c, @selector(handleBottomSwipeableScrollUpdate), (void *)hook_handleBottomSwipeableScrollUpdate,
-                      &orig_handleBottomSwipeableScrollUpdate);
-    NullHookMessageIfPresent(c, @selector(handleBottomSwipeableScrollUpdate:), (void *)hook_handleBottomSwipeableScrollUpdate,
-                      &orig_handleBottomSwipeableScrollUpdate);
+
+    NullHookMessageIfPresent(c, @selector(handleBottomSwipeableScrollUpdate),
+        (void *)hook_handleBottomSwipeableScrollUpdate0,
+        &orig_handleBottomSwipeableScrollUpdate0);
+    NullHookMessageIfPresent(c, @selector(handleBottomSwipeableScrollUpdate:),
+        (void *)hook_handleBottomSwipeableScrollUpdate1,
+        &orig_handleBottomSwipeableScrollUpdate1);
 }
