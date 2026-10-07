@@ -1482,34 +1482,39 @@ typedef NS_ENUM(NSInteger, THProfileAnalyzerMetric) {
     if (!user) return nil;
 
     NSString *url = nil;
-    for (NSString *selName in @[@"HDProfilePicURL", @"hdProfilePicURL"]) {
-        SEL hdSel = NSSelectorFromString(selName);
-        if ([user respondsToSelector:hdSel]) {
-            typedef NSURL * (*URLMsgSend)(id, SEL);
-            URLMsgSend fn = (URLMsgSend)objc_msgSend;
-            NSURL *hdURL = fn(user, hdSel);
-            if ([hdURL isKindOfClass:[NSURL class]] && hdURL.absoluteString.length) {
-                url = hdURL.absoluteString;
+    NSArray<NSString *> *keys = @[
+        @"HDProfilePicURL",
+        @"hdProfilePicURL",
+        @"profilePicURL",
+        @"profile_pic_url",
+        @"profilePictureURL",
+        @"profilePicUrl"
+    ];
+    for (NSString *key in keys) {
+        @try {
+            id val = [user valueForKey:key];
+            if ([val isKindOfClass:[NSString class]] && ((NSString *)val).length) {
+                url = (NSString *)val;
                 break;
+            } else if ([val isKindOfClass:[NSURL class]] && ((NSURL *)val).absoluteString.length) {
+                url = ((NSURL *)val).absoluteString;
+                break;
+            } else if (val) {
+                @try {
+                    id inner = [val valueForKey:@"url"];
+                    if ([inner isKindOfClass:[NSString class]] && ((NSString *)inner).length) {
+                        url = (NSString *)inner;
+                        break;
+                    } else if ([inner isKindOfClass:[NSURL class]] && ((NSURL *)inner).absoluteString.length) {
+                        url = ((NSURL *)inner).absoluteString;
+                        break;
+                    }
+                } @catch (NSException *innerE) {
+                    continue;
+                }
             }
-        }
-    }
-    if (!url.length) {
-        SEL sel = NSSelectorFromString(@"profilePicURL");
-        if ([user respondsToSelector:sel]) {
-            typedef id (*ObjCMsgSend)(id, SEL);
-            id picURL = ((ObjCMsgSend)objc_msgSend)(user, sel);
-            if ([picURL isKindOfClass:[NSURL class]]) url = [(NSURL *)picURL absoluteString];
-            else if ([picURL isKindOfClass:[NSString class]] && ((NSString *)picURL).length) url = (NSString *)picURL;
-        }
-    }
-    if (!url.length) {
-        for (NSString *key in @[@"profilePicURL", @"profile_pic_url", @"profilePictureURL", @"profilePicUrl"]) {
-            @try {
-                id val = [user valueForKey:key];
-                if ([val isKindOfClass:[NSString class]] && ((NSString *)val).length) { url = val; break; }
-                if ([val isKindOfClass:[NSURL class]] && ((NSURL *)val).absoluteString.length) { url = ((NSURL *)val).absoluteString; break; }
-            } @catch (NSException *e) { continue; }
+        } @catch (NSException *e) {
+            continue;
         }
     }
     return url;
@@ -1809,7 +1814,7 @@ static void THProfileAnalyzerDownloadAndCacheProfileImage(NSString *urlString, N
 }
 
 + (void)prefetchProfileImageIfNeeded {
-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
         NSString *pk = [self currentUserPKFromInstagram];
         if (!pk.length) return;
         NSString *cachePath = THProfileAnalyzerProfileImageCachePath(pk);
@@ -1822,30 +1827,26 @@ static void THProfileAnalyzerDownloadAndCacheProfileImage(NSString *urlString, N
         }
 
         /* Fallback: fetch users/{pk}/info/ and cache profile_pic_url. API must run on main (IG networker). */
-        dispatch_async(dispatch_get_main_queue(), ^{
-            THProfileAnalyzerAPIClient *client = [[THProfileAnalyzerAPIClient alloc] init];
-            client.networkDelegate = [[THProfileAnalyzerNetworkDelegate alloc] init];
-            NSString *path = [NSString stringWithFormat:@"users/%@/info/", pk];
-            [client GETWithEndpointPath:path queryParams:nil success:^(NSDictionary * _Nullable json) {
-                if (!json) return;
-                NSDictionary *user = json[@"user"];
-                if (![user isKindOfClass:[NSDictionary class]]) user = json[@"User"];
-                if (![user isKindOfClass:[NSDictionary class]]) return;
-                NSString *picURL = user[@"profile_pic_url"];
-                if (![picURL isKindOfClass:[NSString class]] || !((NSString *)picURL).length)
-                    picURL = user[@"profilePicURL"] ?: user[@"profilePicUrl"];
-                if (![picURL isKindOfClass:[NSString class]] || !((NSString *)picURL).length) {
-                    id hd = user[@"hd_profile_pic_url_info"];
-                    if ([hd isKindOfClass:[NSDictionary class]]) picURL = ((NSDictionary *)hd)[@"url"];
-                }
-                if ([picURL isKindOfClass:[NSString class]] && ((NSString *)picURL).length)
-                    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-                        THProfileAnalyzerDownloadAndCacheProfileImage((NSString *)picURL, pk);
-                    });
-            } failure:^(NSError * _Nonnull err) {
-                (void)err;
-            }];
-        });
+        THProfileAnalyzerAPIClient *client = [[THProfileAnalyzerAPIClient alloc] init];
+        client.networkDelegate = [[THProfileAnalyzerNetworkDelegate alloc] init];
+        NSString *path = [NSString stringWithFormat:@"users/%@/info/", pk];
+        [client GETWithEndpointPath:path queryParams:nil success:^(NSDictionary * _Nullable json) {
+            if (!json) return;
+            NSDictionary *user = json[@"user"];
+            if (![user isKindOfClass:[NSDictionary class]]) user = json[@"User"];
+            if (![user isKindOfClass:[NSDictionary class]]) return;
+            NSString *picURL = user[@"profile_pic_url"];
+            if (![picURL isKindOfClass:[NSString class]] || !((NSString *)picURL).length)
+                picURL = user[@"profilePicURL"] ?: user[@"profilePicUrl"];
+            if (![picURL isKindOfClass:[NSString class]] || !((NSString *)picURL).length) {
+                id hd = user[@"hd_profile_pic_url_info"];
+                if ([hd isKindOfClass:[NSDictionary class]]) picURL = ((NSDictionary *)hd)[@"url"];
+            }
+            if ([picURL isKindOfClass:[NSString class]] && ((NSString *)picURL).length)
+                THProfileAnalyzerDownloadAndCacheProfileImage((NSString *)picURL, pk);
+        } failure:^(NSError * _Nonnull err) {
+            (void)err;
+        }];
     });
 }
 

@@ -160,6 +160,7 @@ static volatile BOOL sGlobalDownloadInProgress = NO;
 #pragma mark - File Management
 
 + (void)createDirectoryIfNotExists:(NSURL *)URL {
+    if (!URL) return;
     if (![URL checkResourceIsReachableAndReturnError:nil]) {
         [[NSFileManager defaultManager] createDirectoryAtURL:URL withIntermediateDirectories:YES attributes:nil error:nil];
     }

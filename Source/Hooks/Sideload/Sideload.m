@@ -80,9 +80,10 @@ static BOOL hook_createDirectoryAtPath(id self, SEL _cmd, NSString *path, BOOL c
 	if (path && ([path rangeOfString:@"MobileConfig" options:NSCaseInsensitiveSearch].location != NSNotFound ||
 	             [path rangeOfString:@"FBMobileConfig" options:NSCaseInsensitiveSearch].location != NSNotFound ||
 	             [path rangeOfString:@"mobileconfig" options:NSCaseInsensitiveSearch].location != NSNotFound)) {
-		// Fake success so IG doesn't assert/crash when the group path is unusable.
-		if (error) *error = nil;
-		return YES;
+		// Force recursive directory creation on disk instead of returning a fake YES.
+		if (!createIntermediates) {
+			return orig_createDirectoryAtPath(self, _cmd, path, YES, attributes, error);
+		}
 	}
 	return NO;
 }

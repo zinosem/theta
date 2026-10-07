@@ -67,13 +67,10 @@ static void InitializeHooks(void) {
 
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             if (ENABLED(@"Load Banner")) {
-                NSString *title = [NSString stringWithFormat:@"Theta %s | Instagram %s", THETA_VERSION, appVersion.UTF8String];
-                dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-                    UIImage *icon = [ThetaHelper imageFromEmojiString:@"🚀" width:300];
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [ThetaHelper showLoadToast:@"Success!" subtitle:title icon:icon autoHide:4 openURL:nil];
-                    });
-                });
+                NSString *appVer = appVersion ?: @"";
+                NSString *title = [NSString stringWithFormat:@"Theta %s | Instagram %s", THETA_VERSION, appVer.UTF8String];
+                UIImage *icon = [ThetaHelper imageFromEmojiString:@"🚀" width:300];
+                [ThetaHelper showLoadToast:@"Success!" subtitle:title icon:icon autoHide:4 openURL:nil];
             }
         });
 
@@ -124,6 +121,7 @@ static void RunSideloadSetupOnce(void) {
     dispatch_once(&once, ^{
         @try {
             fakeGroupContainerURL = [NSURL fileURLWithPath:[NSHomeDirectory() stringByAppendingPathComponent:@"Documents/FakeGroupContainers"] isDirectory:YES];
+            [ThetaHelper createDirectoryIfNotExists:fakeGroupContainerURL];
             loadKeychainAccessGroup();
             NSString *caches = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
             NSString *appSupport = [NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES) firstObject];
@@ -189,11 +187,9 @@ static void ObserveAppLifecycle(void) {
         StartTweakWhenReady();
         [THProfileAnalyzerViewController prefetchProfileImageIfNeeded];
     }];
-    StartTweakWhenReady();
 #ifdef SIDELOAD
     RunSideloadSetupOnce();
 #endif
-    [THProfileAnalyzerViewController prefetchProfileImageIfNeeded];
 }
 
 __attribute__((constructor))
@@ -211,7 +207,8 @@ static void ThetaLoad(void) {
     if ([thetaProject hasPrefix:@"theta "]) {
         thetaProject = [thetaProject substringFromIndex:6];
     }
-    NSLog(@"Theta %@ | Instagram %s | Hello!", thetaProject, appVersion.UTF8String);
+    NSString *appVer = appVersion ?: @"";
+    NSLog(@"Theta %@ | Instagram %s | Hello!", thetaProject, appVer.UTF8String);
 
     [ThetaHelper cleanupTemporaryMediaFiles];
 
@@ -225,5 +222,6 @@ static void ThetaLoad(void) {
 
 __attribute__((destructor))
 static void ThetaUnload(void) {
-    NSLog(@"Theta %s | Instagram %s | Goodbye!", THETA_VERSION, appVersion.UTF8String);
+    NSString *appVer = appVersion ?: @"";
+    NSLog(@"Theta %s | Instagram %s | Goodbye!", THETA_VERSION, appVer.UTF8String);
 }

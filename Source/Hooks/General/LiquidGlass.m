@@ -233,40 +233,22 @@ static Class theta_resolveIGNavConfigurationClass(void) {
     static Class cached = Nil;
     if (cached) return cached;
 
-    NSArray *mangledAttempts = @[
-        @"_TtC18IGNavConfiguration18IGNavConfiguration",
-        @"_TtC19IGNavConfiguration19IGNavConfiguration",
-        @"_TtC20IGNavConfiguration20IGNavConfiguration",
-        @"_TtC17IGNavConfiguration17IGNavConfiguration",
-    ];
-    for (NSString *n in mangledAttempts) {
-        Class c = NSClassFromString(n);
+    const char *names[] = {
+        "_TtC18IGNavConfiguration18IGNavConfiguration",
+        "_TtC19IGNavConfiguration19IGNavConfiguration",
+        "_TtC20IGNavConfiguration20IGNavConfiguration",
+        "_TtC17IGNavConfiguration17IGNavConfiguration",
+        "IGNavConfiguration",
+        NULL
+    };
+    for (int i = 0; names[i]; i++) {
+        Class c = objc_getClass(names[i]);
         if (c) {
             cached = c;
             return cached;
         }
     }
 
-    int numClasses = objc_getClassList(NULL, 0);
-    if (numClasses <= 0) return Nil;
-
-    Class *buf = (Class *)malloc((size_t)numClasses * sizeof(Class));
-    if (!buf) return Nil;
-    int got = objc_getClassList(buf, numClasses);
-
-    SEL isHC = NSSelectorFromString(@"isHomecomingEnabled");
-    for (int i = 0; i < got; i++) {
-        Class c = buf[i];
-        const char *raw = class_getName(c);
-        if (!raw || !strstr(raw, "IGNavConfiguration")) continue;
-        if (class_getInstanceMethod(c, isHC)) {
-            cached = c;
-            free(buf);
-            return cached;
-        }
-    }
-
-    free(buf);
     return Nil;
 }
 
@@ -377,27 +359,6 @@ static void theta_tryInstallLiquidGlassExperimentHooksOnce(void) {
 void THRegisterLiquidGlassTabBarEarlyHooks(void) {
     theta_tryInstallLiquidGlassTabBarCSymbolHooks();
     theta_tryInstallLiquidGlassExperimentHooksOnce();
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-        theta_tryInstallLiquidGlassTabBarCSymbolHooks();
-        theta_tryInstallLiquidGlassExperimentHooksOnce();
-        dispatch_async(dispatch_get_main_queue(), ^{
-            theta_tryInstallLiquidGlassTabBarCSymbolHooks();
-            theta_tryInstallLiquidGlassExperimentHooksOnce();
-        });
-    });
-
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(300 * NSEC_PER_MSEC)),
-                   dispatch_get_main_queue(),
-                   ^{
-        theta_tryInstallLiquidGlassTabBarCSymbolHooks();
-        theta_tryInstallLiquidGlassExperimentHooksOnce();
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)),
-                       dispatch_get_main_queue(), ^{
-            theta_tryInstallLiquidGlassTabBarCSymbolHooks();
-            theta_tryInstallLiquidGlassExperimentHooksOnce();
-        });
-    });
 }
 
 // ── Main registration (call from InitializeHooks post-auth) ───────────────────

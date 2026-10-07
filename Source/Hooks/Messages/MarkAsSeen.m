@@ -1374,34 +1374,19 @@ static void hook_navItem_setRightBarButtonItems(id self, SEL _cmd, id arg1) {
 
 static void ThetaHookShouldUpdateLastSeen(void) {
 	SEL sel = @selector(shouldUpdateLastSeenMessage);
-	NSArray *names = @[
-		@"IGDirectThreadViewListAdapterDataSource",
-		@"IGDirectMessageListDataSourceAdapter",
-		@"IGDirectMessageListDataSource",
-	];
-	for (NSString *name in names) {
-		Class c = NSClassFromString(name);
+	const char *names[] = {
+		"IGDirectThreadViewListAdapterDataSource",
+		"IGDirectMessageListDataSourceAdapter",
+		"IGDirectMessageListDataSource",
+		NULL
+	};
+	for (int i = 0; names[i]; i++) {
+		Class c = objc_getClass(names[i]);
 		if (c && class_getInstanceMethod(c, sel)) {
 			NullHookMessageIfPresent(c, sel, (void *)hook_markMessagesAsSeen, &orig_markMessagesAsSeen);
 			return;
 		}
 	}
-	int n = objc_getClassList(NULL, 0);
-	if (n <= 0) return;
-	Class *classes = (Class *)malloc((size_t)n * sizeof(Class));
-	n = objc_getClassList(classes, n);
-	for (int i = 0; i < n; i++) {
-		if (!class_getInstanceMethod(classes[i], sel)) continue;
-		const char *cname = class_getName(classes[i]);
-		if (!cname || !strstr(cname, "Direct")) continue;
-		Class supercls = class_getSuperclass(classes[i]);
-		Method mine = class_getInstanceMethod(classes[i], sel);
-		Method inherited = supercls ? class_getInstanceMethod(supercls, sel) : NULL;
-		if (inherited == mine) continue;
-		NullHookMessageIfPresent(classes[i], sel, (void *)hook_markMessagesAsSeen, &orig_markMessagesAsSeen);
-		break;
-	}
-	free(classes);
 }
 
 void THRegisterMarkAsSeenThreadAndReactionHooks(void) {
