@@ -32,9 +32,15 @@ static void hook_handleBottomSwipeableScrollUpdate(id self, SEL _cmd) {
 }
 
 void THRegisterVanishModeConfirmationHooks(void) {
-    Class c = objc_getClass("IGDirectDisappearingModeSwipeHandler");
+    Class c = ThetaFirstClass(@[
+        @"_TtC32IGDirectDisappearingModeUI34IGDirectDisappearingModeSwipeHandler",
+        @"_TtC35IGDirectDisappearingModeSwipeHandler35IGDirectDisappearingModeSwipeHandler",
+        @"IGDirectDisappearingModeSwipeHandler"
+    ]);
     if (!c)
         return;
-    NullHookMessageEx(c, @selector(handleBottomSwipeableScrollUpdate), (void *)hook_handleBottomSwipeableScrollUpdate,
+    NullHookMessageIfPresent(c, @selector(handleBottomSwipeableScrollUpdate), (void *)hook_handleBottomSwipeableScrollUpdate,
+                      &orig_handleBottomSwipeableScrollUpdate);
+    NullHookMessageIfPresent(c, @selector(handleBottomSwipeableScrollUpdate:), (void *)hook_handleBottomSwipeableScrollUpdate,
                       &orig_handleBottomSwipeableScrollUpdate);
 }

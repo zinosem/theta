@@ -75,49 +75,18 @@ static void copyCommentText(id self) {
                 return;
             }
 
-            // Find the first object with the class "IGCommentCellView.IGCommentCellContentView"
-            Class contentViewClass = NSClassFromString(@"IGCommentCellView.IGCommentCellContentView");
-            if (!contentViewClass) {
-                return;
-            }
-
-            UIView *contentView = nil;
-            for (UIView *subview in subviews) {
-                if ([subview isKindOfClass:contentViewClass]) {
-                    contentView = subview;
+            NSMutableArray *queue = [NSMutableArray arrayWithObject:view];
+            while (queue.count > 0) {
+                UIView *v = queue.firstObject;
+                [queue removeObjectAtIndex:0];
+                if ([v isKindOfClass:coreTextViewClass]) {
+                    coreTextView = v;
                     break;
                 }
+                [queue addObjectsFromArray:v.subviews];
             }
-
-            if (!contentView) {
-                // If no content view found, try searching all subviews for IGCoreTextView
-                for (UIView *subview in subviews) {
-                    if ([subview isKindOfClass:coreTextViewClass]) {
-                        coreTextView = subview;
-                        break;
-                    }
-                }
-                if (!coreTextView) {
-                    return;
-                }
-            } else {
-                // Get the subviews for the content view
-                NSArray *contentSubviews = contentView.subviews;
-                if (!contentSubviews || contentSubviews.count == 0) {
-                    return;
-                }
-
-                // Find the object with the class "IGCoreTextView"
-                for (UIView *subview in contentSubviews) {
-                    if ([subview isKindOfClass:coreTextViewClass]) {
-                        coreTextView = subview;
-                        break;
-                    }
-                }
-
-                if (!coreTextView) {
-                    return;
-                }
+            if (!coreTextView) {
+                return;
             }
         }
         
@@ -711,6 +680,16 @@ static void hook_copyCommentText(id self, SEL _cmd) {
 }
 
 void THRegisterCommentTextCopyHooks(void) {
-    NullHookMessageEx(objc_getClass("IGCommentCellView.IGCommentCellView"), @selector(layoutSubviews), (void *)hook_copyCommentText, &orig_copyCommentText);
+    Class commentCell = ThetaFirstClass(@[
+        @"_TtC17IGCommentCellView17IGCommentCellView",
+        @"IGCommentCellView.IGCommentCellView",
+        @"IGCommentCellView",
+        @"_TtC17IGCommentCellView26IGCommentCellContentView",
+        @"IGCommentCellContentView",
+        @"IGCommentCell"
+    ]);
+    if (commentCell) {
+        NullHookMessageIfPresent(commentCell, @selector(layoutSubviews), (void *)hook_copyCommentText, &orig_copyCommentText);
+    }
 }
 

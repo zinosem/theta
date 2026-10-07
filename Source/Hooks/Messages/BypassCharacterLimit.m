@@ -201,14 +201,21 @@ static void hook_directComposer2(id self, SEL _cmd) {
             return;
         }
         
-        Ivar characterLimitIvar = class_getInstanceVariable([self class], "_characterLimit");
-        if (!characterLimitIvar) {
-            NSLog(@"Character limit ivar not found");
-            return;
+        if ([self respondsToSelector:@selector(setCharacterLimit:)]) {
+            ((void (*)(id, SEL, NSInteger))objc_msgSend)(self, @selector(setCharacterLimit:), 99999999);
+        } else {
+            Ivar characterLimitIvar = class_getInstanceVariable([self class], "_characterLimit");
+            if (characterLimitIvar) {
+                const char *typeEncoding = ivar_getTypeEncoding(characterLimitIvar);
+                ptrdiff_t offset = ivar_getOffset(characterLimitIvar);
+                if (typeEncoding && (typeEncoding[0] == 'q' || typeEncoding[0] == 'l' || typeEncoding[0] == 'i' || typeEncoding[0] == 's')) {
+                    NSInteger *ptr = (NSInteger *)((uint8_t *)(__bridge void *)self + offset);
+                    *ptr = 99999999;
+                } else if (typeEncoding && typeEncoding[0] == '@') {
+                    object_setIvar(self, characterLimitIvar, @(99999999));
+                }
+            }
         }
-        
-        NSInteger characterLimit = 99999999;
-        object_setIvar(self, characterLimitIvar, @(characterLimit));
     } @catch (NSException *exception) {
         NSLog(@"Error in character limit bypass: %@", exception);
     }

@@ -248,6 +248,14 @@ static void hook_hideIGDSPromoDialog(id self, SEL _cmd) {
 
 void THRegisterDismissIGDSPromoDialogHooks(void) {
 #ifdef SIDELOAD
-    NullHookMessageEx(objc_getClass("IGDSPromoDialog.IGDSPromoDialogView"), @selector(didMoveToWindow), (void *)hook_hideIGDSPromoDialog, &orig_hideIGDSPromoDialog);
+    Class promoView = ThetaFirstClass(@[
+        @"_TtC15IGDSPromoDialog19IGDSPromoDialogView",
+        @"_TtC15IGDSPromoDialog21IGDSPromoDialogView",
+        @"IGDSPromoDialogView",
+        @"IGDSPromoDialog.IGDSPromoDialogView"
+    ]);
+    if (promoView) {
+        NullHookMessageIfPresent(promoView, @selector(didMoveToWindow), (void *)hook_hideIGDSPromoDialog, &orig_hideIGDSPromoDialog);
+    }
 #endif
 }

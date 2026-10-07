@@ -17,5 +17,12 @@ static void hook_createGroupConfirmation(id self, SEL _cmd, id arg1) {
 }
 
 void THRegisterCreateGroupConfirmationHooks(void) {
-    NullHookMessageEx(objc_getClass("IGShareSheet.IGSharesheetBottomButtonsView"), @selector(secondaryButtonTappedWithButton:), (void *)hook_createGroupConfirmation, &orig_createGroupConfirmation);
+    Class bottomButtons = ThetaFirstClass(@[
+        @"_TtC12IGShareSheet27IGSharesheetBottomButtonsView",
+        @"IGShareSheet.IGSharesheetBottomButtonsView",
+        @"IGSharesheetBottomButtonsView"
+    ]);
+    if (bottomButtons) {
+        NullHookMessageIfPresent(bottomButtons, @selector(secondaryButtonTappedWithButton:), (void *)hook_createGroupConfirmation, &orig_createGroupConfirmation);
+    }
 }

@@ -43,9 +43,13 @@ static void hook_seenStoryOnReply(id self, SEL _cmd, id inputView, id text, id q
 }
 
 void THRegisterStorySeenOnHooks(void) {
-    if ([appVersion compare:@"423.0.0" options:NSNumericSearch] == NSOrderedAscending) {
-        NullHookMessageEx(objc_getClass("IGStoryFullscreenDefaultFooterView"), @selector(inputView:didTapSendButtonWithText:quotedContent:animatedEmojiCharacterRanges:defaultPowerupsMetadata:imageGlyphLocations:replyBarGroupRecipients:), (void *)hook_seenStoryOnReply, &orig_seenStoryOnReply);
-    } else {
-        NullHookMessageEx(objc_getClass("IGStoryDefaultFooter.IGStoryFullscreenDefaultFooterView"), @selector(inputView:didTapSendButtonWithText:quotedContent:animatedEmojiCharacterRanges:defaultPowerupsMetadata:imageGlyphLocations:replyBarGroupRecipients:), (void *)hook_seenStoryOnReply, &orig_seenStoryOnReply);
+    Class footerView = ThetaFirstClass(@[
+        @"_TtC18IGStoryDefaultFooter35IGStoryFullscreenDefaultFooterView",
+        @"IGStoryDefaultFooter.IGStoryFullscreenDefaultFooterView",
+        @"IGStoryFullscreenDefaultFooterView"
+    ]);
+    if (footerView) {
+        NullHookMessageIfPresent(footerView, @selector(inputView:didTapSendButtonWithText:quotedContent:animatedEmojiCharacterRanges:defaultPowerupsMetadata:imageGlyphLocations:replyBarGroupRecipients:), (void *)hook_seenStoryOnReply, &orig_seenStoryOnReply);
+        NullHookMessageIfPresent(footerView, @selector(inputView:didTapSendButtonWithText:quotedContent:animatedEmojiCharacterRanges:defaultPowerupsMetadata:imageGlyphLocations:replayBarGroupRecipients:), (void *)hook_seenStoryOnReply, &orig_seenStoryOnReply);
     }
 }

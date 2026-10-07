@@ -3,8 +3,8 @@
 static void showLikeConfirmationAlert(NSString *mediaType, void (^confirmAction)(void)) {
     NSString *description = [NSString stringWithFormat:@"Are you sure you want to like this %@?", mediaType];
     [ThetaHelper showCustomAlertWithActions:@"Hold up!" description:description actions:@[
-        @{ @"title": @"Yes, like it!", @"handler": ^(id sender) { confirmAction(); } },
-        @{ @"title": @"No, cancel.", @"handler": ^(id sender) { } },
+        @{ @"title": @"Yes, like it!", @"handler": ^(__unused id sender) { confirmAction(); } },
+        @{ @"title": @"No, cancel.", @"handler": ^(__unused id sender) { } },
     ]];
 }
 
@@ -47,6 +47,16 @@ static void hook_likeConfirmation6(id self, SEL _cmd) {
     theta_runLikeConfirmation(@"post", ^{ if (orig_likeConfirmation6) orig_likeConfirmation6(self, _cmd); });
 }
 
+static void (*orig_likeConfirmation7)(id self, SEL _cmd);
+static void hook_likeConfirmation7(id self, SEL _cmd) {
+    theta_runLikeConfirmation(@"post", ^{ if (orig_likeConfirmation7) orig_likeConfirmation7(self, _cmd); });
+}
+
+static void (*orig_likeConfirmation8)(id self, SEL _cmd);
+static void hook_likeConfirmation8(id self, SEL _cmd) {
+    theta_runLikeConfirmation(@"photo", ^{ if (orig_likeConfirmation8) orig_likeConfirmation8(self, _cmd); });
+}
+
 void THRegisterLikeConfirmationHooks(void) {
     // Feed video double-tap (Swift rename)
     ThetaHookFirst(
@@ -55,15 +65,44 @@ void THRegisterLikeConfirmationHooks(void) {
         @[ @"handleDoubleTapGesture:", @"_handleDoubleTapGesture:" ],
         (void *)hook_likeConfirmation, &orig_likeConfirmation);
 
-    NullHookMessageIfPresent(objc_getClass("IGSundialViewerVideoCell"),
-                             @selector(gestureController:didObserveDoubleTap:),
-                             (void *)hook_likeConfirmation2, &orig_likeConfirmation2);
-    NullHookMessageIfPresent(objc_getClass("IGFeedPhotoView"),
-                             @selector(_onDoubleTap:),
-                             (void *)hook_likeConfirmation3, &orig_likeConfirmation3);
-    NullHookMessageIfPresent(objc_getClass("IGFeedItemUFICell"),
-                             @selector(UFIButtonBarDidTapOnLike:),
-                             (void *)hook_likeConfirmation4, &orig_likeConfirmation4);
+    Class sundialVideoCell = ThetaFirstClass(@[
+        @"_TtC20IGSundialViewerVideo24IGSundialViewerVideoCell",
+        @"IGSundialViewerVideoCell"
+    ]);
+    if (sundialVideoCell) {
+        NullHookMessageIfPresent(sundialVideoCell,
+                                 @selector(gestureController:didObserveDoubleTap:),
+                                 (void *)hook_likeConfirmation2, &orig_likeConfirmation2);
+    }
+
+    Class photoView = ThetaFirstClass(@[
+        @"_TtC15IGFeedPhotoView15IGFeedPhotoView",
+        @"IGFeedPhotoView"
+    ]);
+    if (photoView) {
+        NullHookMessageIfPresent(photoView, @selector(_onDoubleTap:), (void *)hook_likeConfirmation3, &orig_likeConfirmation3);
+        NullHookMessageIfPresent(photoView, @selector(_onDoubleTap), (void *)hook_likeConfirmation8, &orig_likeConfirmation8);
+        NullHookMessageIfPresent(photoView, @selector(handleDoubleTapGesture:), (void *)hook_likeConfirmation3, &orig_likeConfirmation3);
+        NullHookMessageIfPresent(photoView, @selector(_handleDoubleTapGesture:), (void *)hook_likeConfirmation3, &orig_likeConfirmation3);
+    }
+
+    Class ufiCell = ThetaFirstClass(@[
+        @"_TtC17IGFeedItemUFICell17IGFeedItemUFICell",
+        @"IGFeedItemUFICell"
+    ]);
+    if (ufiCell) {
+        NullHookMessageIfPresent(ufiCell, @selector(UFIButtonBarDidTapOnLike:), (void *)hook_likeConfirmation4, &orig_likeConfirmation4);
+    }
+
+    Class ufiButtonBar = ThetaFirstClass(@[
+        @"_TtC14IGUFIButtonBar14IGUFIButtonBar",
+        @"IGUFIButtonBar"
+    ]);
+    if (ufiButtonBar) {
+        NullHookMessageIfPresent(ufiButtonBar, @selector(likeButtonTapped:), (void *)hook_likeConfirmation4, &orig_likeConfirmation4);
+        NullHookMessageIfPresent(ufiButtonBar, @selector(_didTapLikeButton:), (void *)hook_likeConfirmation5, &orig_likeConfirmation5);
+        NullHookMessageIfPresent(ufiButtonBar, @selector(didTapLikeButton), (void *)hook_likeConfirmation6, &orig_likeConfirmation6);
+    }
 
     // Reels vertical UFI like button (Swift rename)
     Class ufi = ThetaFirstClass(@[
@@ -72,7 +111,8 @@ void THRegisterLikeConfirmationHooks(void) {
     ]);
     if (ufi) {
         NullHookMessageIfPresent(ufi, @selector(didTapLikeButton), (void *)hook_likeConfirmation6, &orig_likeConfirmation6);
-        NullHookMessageIfPresent(ufi, @selector(_didTapLikeButton), (void *)hook_likeConfirmation6, &orig_likeConfirmation6);
+        NullHookMessageIfPresent(ufi, @selector(_didTapLikeButton), (void *)hook_likeConfirmation7, &orig_likeConfirmation7);
         NullHookMessageIfPresent(ufi, @selector(_didTapLikeButton:), (void *)hook_likeConfirmation5, &orig_likeConfirmation5);
+        NullHookMessageIfPresent(ufi, @selector(didTapLikeButton:), (void *)hook_likeConfirmation5, &orig_likeConfirmation5);
     }
 }

@@ -444,18 +444,24 @@ static BOOL hook_viewer_isReplayable(id self, SEL _cmd) {
 }
 
 void THRegisterPrivateVideoGhostHooks(void) {
-    Class viewerClass = objc_getClass("IGDirectVisualMessageViewerController");
+    Class viewerClass = ThetaFirstClass(@[
+        @"_TtC32IGDirectVisualMessageViewerSwift35IGDirectVisualMessageViewerController",
+        @"IGDirectVisualMessageViewerController"
+    ]);
     if (viewerClass) {
-        NullHookMessageEx(viewerClass, @selector(viewDidLoad), (void *)hook_visualmsgghostbuttons, &orig_visualmsgghostbuttons);
-        NullHookMessageEx(viewerClass, @selector(viewDidLayoutSubviews), (void *)hook_visualmsgghost_layoutSubviews, &orig_visualmsgghost_layoutSubviews);
-        NullHookMessageEx(viewerClass, @selector(storyPlayerMediaViewDidPlay:), (void *)hook_visualmsgghostvideo, &orig_visualmsgghostvideo);
+        NullHookMessageIfPresent(viewerClass, @selector(viewDidLoad), (void *)hook_visualmsgghostbuttons, &orig_visualmsgghostbuttons);
+        NullHookMessageIfPresent(viewerClass, @selector(viewDidLayoutSubviews), (void *)hook_visualmsgghost_layoutSubviews, &orig_visualmsgghost_layoutSubviews);
+        NullHookMessageIfPresent(viewerClass, @selector(storyPlayerMediaViewDidPlay:), (void *)hook_visualmsgghostvideo, &orig_visualmsgghostvideo);
         NullHookMessageIfPresent(viewerClass, NSSelectorFromString(@"canReplay"), (void *)hook_viewer_canReplay, &orig_viewer_canReplay);
         NullHookMessageIfPresent(viewerClass, NSSelectorFromString(@"isReplayable"), (void *)hook_viewer_isReplayable, &orig_viewer_isReplayable);
     }
 
-    Class photoViewClass = objc_getClass("IGStoryPhotoView");
+    Class photoViewClass = ThetaFirstClass(@[
+        @"_TtC16IGStoryPhotoView16IGStoryPhotoView",
+        @"IGStoryPhotoView"
+    ]);
     if (photoViewClass) {
-        NullHookMessageEx(photoViewClass, @selector(progressImageView:didLoadImage:loadSource:networkRequestSummary:), (void *)hook_visualmsgghostphoto, &orig_visualmsgghostphoto);
+        NullHookMessageIfPresent(photoViewClass, @selector(progressImageView:didLoadImage:loadSource:networkRequestSummary:), (void *)hook_visualmsgghostphoto, &orig_visualmsgghostphoto);
     }
 
     // 1. IGDirectVisualMessage

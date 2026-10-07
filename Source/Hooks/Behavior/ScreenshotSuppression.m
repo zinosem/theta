@@ -300,7 +300,10 @@ void THRegisterScreenshotObserverHook(void) {
     }
 
     // 2. Hook IGScreenshotObserver
-    Class obsClass = objc_getClass("IGScreenshotObserver");
+    Class obsClass = ThetaFirstClass(@[
+        @"_TtC20IGScreenshotObserver20IGScreenshotObserver",
+        @"IGScreenshotObserver"
+    ]);
     if (obsClass) {
         NullHookMessageIfPresent(obsClass, @selector(_onTakenScreenshot), (void *)hook_screenshotSuppression, &orig_screenshotSuppression);
         NullHookMessageIfPresent(obsClass, @selector(_screenCaptureStateDidChange:), (void *)hook_screenRecord, &orig_screenRecord);
@@ -309,7 +312,10 @@ void THRegisterScreenshotObserverHook(void) {
     }
 
     // 3. Direct visual media controllers
-    Class dvmClass = objc_getClass("IGDirectVisualMessageViewerController");
+    Class dvmClass = ThetaFirstClass(@[
+        @"_TtC32IGDirectVisualMessageViewerSwift35IGDirectVisualMessageViewerController",
+        @"IGDirectVisualMessageViewerController"
+    ]);
     if (dvmClass) {
         NullHookMessageIfPresent(dvmClass, @selector(_didTakeScreenshot), (void *)hook_DVM_didTakeScreenshot, &orig_DVM_didTakeScreenshot);
         NullHookMessageIfPresent(dvmClass, @selector(userDidTakeScreenshot:), (void *)hook_DVM_userDidTakeScreenshot, &orig_DVM_userDidTakeScreenshot);
@@ -321,7 +327,10 @@ void THRegisterScreenshotObserverHook(void) {
     }
 
     // 4. Direct thread view controller (Vanish / Ephemeral mode DM thread)
-    Class threadVCClass = objc_getClass("IGDirectThreadViewController");
+    Class threadVCClass = ThetaFirstClass(@[
+        @"_TtC28IGDirectThreadViewController28IGDirectThreadViewController",
+        @"IGDirectThreadViewController"
+    ]);
     if (threadVCClass) {
         NullHookMessageIfPresent(threadVCClass, @selector(_userDidTakeScreenshotNotification:), (void *)hook_ThreadVC_userDidTakeScreenshotNotif, &orig_ThreadVC_userDidTakeScreenshotNotif);
         NullHookMessageIfPresent(threadVCClass, @selector(_didTakeScreenshot), (void *)hook_ThreadVC_didTakeScreenshot, &orig_ThreadVC_didTakeScreenshot);
@@ -334,7 +343,10 @@ void THRegisterScreenshotObserverHook(void) {
     }
 
     // 5. Direct screenshot observer
-    Class directScreenshotObsClass = objc_getClass("IGDirectScreenshotObserver");
+    Class directScreenshotObsClass = ThetaFirstClass(@[
+        @"_TtC26IGDirectScreenshotObserver26IGDirectScreenshotObserver",
+        @"IGDirectScreenshotObserver"
+    ]);
     if (directScreenshotObsClass) {
         NullHookMessageIfPresent(directScreenshotObsClass, @selector(_onTakenScreenshot), (void *)hook_directObs_onTakenScreenshot, &orig_directObs_onTakenScreenshot);
         NullHookMessageIfPresent(directScreenshotObsClass, @selector(_didTakeScreenshot), (void *)hook_directObs_didTakeScreenshot, &orig_directObs_didTakeScreenshot);

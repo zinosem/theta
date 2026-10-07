@@ -355,6 +355,45 @@ static void hook_directMessageCell_configure(id self, SEL _cmd, id viewModel, id
 	thetaUpdateCellAppearance(self);
 }
 
+static void (*orig_directMessageCell_layoutSubviews)(id self, SEL _cmd);
+static void hook_directMessageCell_layoutSubviews(id self, SEL _cmd) {
+	if (orig_directMessageCell_layoutSubviews) orig_directMessageCell_layoutSubviews(self, _cmd);
+	if (!ENABLED(@"Keep Deleted Messages")) return;
+	thetaUpdateCellAppearance(self);
+}
+
+static void (*orig_directCache_removeMessages)(id self, SEL _cmd, id messageKeys);
+static void hook_directCache_removeMessages(id self, SEL _cmd, id messageKeys) {
+	if (ENABLED(@"Keep Deleted Messages")) {
+		if ([messageKeys isKindOfClass:[NSArray class]]) {
+			for (id key in messageKeys) {
+				NSString *sid = nil;
+				@try { sid = [key valueForKey:@"serverId"] ?: [key valueForKey:@"_serverId"]; } @catch (__unused id e) {}
+				if (sid.length > 0) {
+					[[MessagesManager sharedManager] saveDeletedMessageWithID:sid];
+				}
+			}
+			dispatch_async(dispatch_get_main_queue(), ^{ thetaRefreshVisibleCellIndicators(); });
+		}
+		return;
+	}
+	if (orig_directCache_removeMessages) orig_directCache_removeMessages(self, _cmd, messageKeys);
+}
+
+static void (*orig_directCache_removeMessage)(id self, SEL _cmd, id messageKey);
+static void hook_directCache_removeMessage(id self, SEL _cmd, id messageKey) {
+	if (ENABLED(@"Keep Deleted Messages")) {
+		NSString *sid = nil;
+		@try { sid = [messageKey valueForKey:@"serverId"] ?: [messageKey valueForKey:@"_serverId"]; } @catch (__unused id e) {}
+		if (sid.length > 0) {
+			[[MessagesManager sharedManager] saveDeletedMessageWithID:sid];
+			dispatch_async(dispatch_get_main_queue(), ^{ thetaRefreshVisibleCellIndicators(); });
+		}
+		return;
+	}
+	if (orig_directCache_removeMessage) orig_directCache_removeMessage(self, _cmd, messageKey);
+}
+
 static void (*orig_messageCache3)(id self, SEL _cmd, id updates, id completion, id userAccess);
 static void hook_messageCache3(id self, SEL _cmd, id updates, id completion, id userAccess) {
 	if (!ENABLED(@"Keep Deleted Messages")) {
@@ -388,10 +427,22 @@ static void hook_messageCache2(id self, SEL _cmd, id updates, id completion) {
 }
 
 void THRegisterKeepDeletedMessagesHooks(void) {
-	Class applicator = objc_getClass("IGDirectCacheUpdatesApplicator");
+	Class applicator = ThetaFirstClass(@[
+		@"_TtC26IGDirectCacheUpdatesApplicator26IGDirectCacheUpdatesApplicator",
+		@"IGDirectCacheUpdatesApplicator"
+	]);
 	if (applicator) {
 		NullHookMessageIfPresent(applicator, @selector(_applyThreadUpdates:completion:userAccess:), (void *)hook_messageCache3, &orig_messageCache3);
 		NullHookMessageIfPresent(applicator, @selector(_applyThreadUpdates:completion:), (void *)hook_messageCache2, &orig_messageCache2);
+	}
+
+	Class cache = ThetaFirstClass(@[
+		@"_TtC13IGDirectCache13IGDirectCache",
+		@"IGDirectCache"
+	]);
+	if (cache) {
+		NullHookMessageIfPresent(cache, @selector(removeMessagesWithMessageKeys:), (void *)hook_directCache_removeMessages, &orig_directCache_removeMessages);
+		NullHookMessageIfPresent(cache, @selector(removeMessageWithKey:), (void *)hook_directCache_removeMessage, &orig_directCache_removeMessage);
 	}
 
 	Class messageCell = ThetaFirstClass(@[
@@ -403,5 +454,9 @@ void THRegisterKeepDeletedMessagesHooks(void) {
 			@selector(configureWithViewModel:ringViewSpecFactory:launcherSet:),
 			(void *)hook_directMessageCell_configure,
 			&orig_directMessageCell_configure);
+		NullHookMessageIfPresent(messageCell,
+			@selector(layoutSubviews),
+			(void *)hook_directMessageCell_layoutSubviews,
+			&orig_directMessageCell_layoutSubviews);
 	}
 }

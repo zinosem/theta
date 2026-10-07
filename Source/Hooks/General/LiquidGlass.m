@@ -375,11 +375,19 @@ void THRegisterLiquidGlassHooks(void) {
                                              forKey:@"instagram.override.project.lucent.navigation"];
 
     // Liquid glass buttons ObjC hooks
-    Class swizzleToggle = NSClassFromString(@"IGLiquidGlassSwizzle.IGLiquidGlassSwizzleToggle");
+    Class swizzleToggle = ThetaFirstClass(@[
+        @"_TtC20IGLiquidGlassSwizzle26IGLiquidGlassSwizzleToggle",
+        @"IGLiquidGlassSwizzle.IGLiquidGlassSwizzleToggle",
+        @"IGLiquidGlassSwizzleToggle"
+    ]);
     NullHookMessageIfPresent(swizzleToggle, @selector(isEnabled),
                              (void *)hook_swizzleToggle_isEnabled, &orig_swizzleToggle_isEnabled);
 
-    Class expHelper = NSClassFromString(@"IGLiquidGlassExperimentHelper.IGLiquidGlassNavigationExperimentHelper");
+    Class expHelper = ThetaFirstClass(@[
+        @"_TtC30IGLiquidGlassExperimentHelper44IGLiquidGlassNavigationExperimentHelper",
+        @"IGLiquidGlassExperimentHelper.IGLiquidGlassNavigationExperimentHelper",
+        @"IGLiquidGlassNavigationExperimentHelper"
+    ]);
     NullHookMessageIfPresent(expHelper, @selector(isEnabled),
                              (void *)hook_expHelper_isEnabled, &orig_expHelper_isEnabled);
     NullHookMessageIfPresent(expHelper, @selector(isHomeFeedHeaderEnabled),

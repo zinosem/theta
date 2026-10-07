@@ -91,8 +91,13 @@ NSArray *ThetaApplyHideFeedFiltering(NSArray *list, BOOL isMainFeed) {
 
             if (theta_shouldRemoveThreadsCarousel()) {
                 if (isMainFeed) {
-                    Class threadsCls = objc_getClass("IGThreadsInFeedModels.IGThreadsInFeedModel");
-                    if ([obj isKindOfClass:%c(IGBloksFeedUnitModel)] || (threadsCls && [obj isKindOfClass:threadsCls]))
+                    Class threadsCls = ThetaFirstClass(@[
+                        @"_TtC19IGThreadsInFeedModels20IGThreadsInFeedModel",
+                        @"IGThreadsInFeedModel",
+                        @"IGThreadsInFeedModels.IGThreadsInFeedModel"
+                    ]);
+                    NSString *clsName = NSStringFromClass([obj class]);
+                    if ([obj isKindOfClass:%c(IGBloksFeedUnitModel)] || (threadsCls && [obj isKindOfClass:threadsCls]) || [clsName containsString:@"ThreadsInFeed"])
                         continue;
                 }
                 if ([obj isKindOfClass:%c(IGSundialNetegoItem)])

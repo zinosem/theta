@@ -1388,4 +1388,7 @@ void THRegisterMarkAsSeenSeenOnSendHook(void) {
 		NullHookMessageIfPresent(objc_getClass("IGDirectComposerSendController"), @selector(didTapSend), (void *)hook_seenOnSend2, &orig_seenOnSend2);
 	}
 	NullHookMessageIfPresent(composer, @selector(_didTapSend:), (void *)hook_seenOnSend, &orig_seenOnSend);
+	if (!orig_seenOnSend) {
+		NullHookMessageIfPresent(composer, @selector(didTapSend:), (void *)hook_seenOnSend, &orig_seenOnSend);
+	}
 }

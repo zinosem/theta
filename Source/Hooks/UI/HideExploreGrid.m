@@ -1,3 +1,5 @@
+#import "Include/ThetaTweakCommon.h"
+
 static void (*orig_hideExploreGrid)(id self, SEL _cmd);
 static void hook_hideExploreGrid(id self, SEL _cmd) {
     if (orig_hideExploreGrid) orig_hideExploreGrid(self, _cmd);
@@ -9,12 +11,22 @@ static void hook_hideExploreGrid(id self, SEL _cmd) {
                 break;
             }
         }
-        if ([responder isKindOfClass:NSClassFromString(@"IGExploreGridViewController")]) {
-            [self setHidden:YES];
+        if (responder) {
+            NSString *className = NSStringFromClass([responder class]);
+            if ([className containsString:@"ExploreGridViewController"] ||
+                [className containsString:@"ExploreViewController"]) {
+                [self setHidden:YES];
+            }
         }
     }
 }
 
 void THRegisterHideExploreGridHooks(void) {
-    NullHookMessageEx(objc_getClass("IGListCollectionView"), @selector(layoutSubviews), (void *)hook_hideExploreGrid, &orig_hideExploreGrid);
+    Class collectionView = ThetaFirstClass(@[
+        @"IGListCollectionView",
+        @"_TtC20IGListCollectionView20IGListCollectionView"
+    ]);
+    if (collectionView) {
+        NullHookMessageIfPresent(collectionView, @selector(layoutSubviews), (void *)hook_hideExploreGrid, &orig_hideExploreGrid);
+    }
 }
