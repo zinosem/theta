@@ -401,16 +401,21 @@ static UIColor *THColorFromHexString(NSString *hexString) {
     self.navigationController.navigationBar.tintColor = [ThetaHelper iotaPinkColor];
 
     LinkItem *twitter = [LinkItem new];
-    twitter.title = @"Follow @objcmsgsend on X";
+    twitter.title = @"Follow @zinosem on X";
     twitter.linkDetail = @"Stay updated with the latest news and updates.";
-    twitter.urlString = @"https://twitter.com/objcmsgsend";
+    twitter.urlString = @"https://x.com/zinosem";
+
+    LinkItem *github = [LinkItem new];
+    github.title = @"GitHub @zinosem";
+    github.linkDetail = @"Theta repository, updates and releases.";
+    github.urlString = @"https://github.com/zinosem/theta";
 
     LinkItem *discord = [LinkItem new];
     discord.title = @"Join the Discord Server";
     discord.linkDetail = @"Join the community for support and discussions.";
     discord.urlString = @"https://discord.gg/8b36UrNPEw";
 
-    self.linkItems = @[twitter, discord];
+    self.linkItems = @[twitter, github, discord];
 
     [self setupAnimatedTitle];
     [self setupVersionStrings];
@@ -1829,7 +1834,7 @@ didOutputMetadataObjects:(NSArray<__kindof AVMetadataObject *> *)metadataObjects
         // Set light grey color regardless of dark mode
         versionLabel.textColor = [UIColor colorWithRed:0.4 green:0.4 blue:0.4 alpha:1.0];
         
-        NSString *versionText = [NSString stringWithFormat:@"Made with ❤️ by @objc_msgSend\nInstagram v%@ | Theta %@", 
+        NSString *versionText = [NSString stringWithFormat:@"Made with ❤️ by @zinosem\nInstagram v%@ | Theta %@", 
                                 self.instagramVersion, self.thetaVersion];
         versionLabel.text = versionText;
         

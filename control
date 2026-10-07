@@ -3,7 +3,7 @@ Name: Theta
 Version: 1.0.0
 Architecture: iphoneos-arm
 Description: Instagram tweak — clean rebuild without DRM/obfuscation
-Maintainer: local
-Author: local
+Maintainer: zinosem
+Author: zinosem
 Section: Tweaks
 Depends: mobilesubstrate
