@@ -300,11 +300,10 @@ static BOOL hook_msg_isReplayable(id self, SEL _cmd) {
 
 static long long (*orig_msg_seenCount)(id self, SEL _cmd);
 static long long hook_msg_seenCount(id self, SEL _cmd) {
-    long long count = orig_msg_seenCount ? orig_msg_seenCount(self, _cmd) : 0;
     if (ENABLED(@"Unlimited Replay Disappearing Media")) {
-        if (count > 1) return 1;
+        return 0;
     }
-    return count;
+    return orig_msg_seenCount ? orig_msg_seenCount(self, _cmd) : 0;
 }
 
 // 2. IGDirectVisualMediaInfo
@@ -343,11 +342,10 @@ static BOOL hook_mediaInfo_canReplay(id self, SEL _cmd) {
 
 static long long (*orig_mediaInfo_seenCount)(id self, SEL _cmd);
 static long long hook_mediaInfo_seenCount(id self, SEL _cmd) {
-    long long count = orig_mediaInfo_seenCount ? orig_mediaInfo_seenCount(self, _cmd) : 0;
     if (ENABLED(@"Unlimited Replay Disappearing Media")) {
-        if (count > 1) return 1;
+        return 0;
     }
-    return count;
+    return orig_mediaInfo_seenCount ? orig_mediaInfo_seenCount(self, _cmd) : 0;
 }
 
 // 3. IGDirectVisualMessageViewModel
@@ -392,6 +390,14 @@ static BOOL hook_vm_isReplayable(id self, SEL _cmd) {
     return orig_vm_isReplayable ? orig_vm_isReplayable(self, _cmd) : NO;
 }
 
+static long long (*orig_vm_seenCount)(id self, SEL _cmd);
+static long long hook_vm_seenCount(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return 0;
+    }
+    return orig_vm_seenCount ? orig_vm_seenCount(self, _cmd) : 0;
+}
+
 // 4. IGDirectVisualMessageCellViewModel
 static NSInteger (*orig_cellVM_viewMode)(id self, SEL _cmd);
 static NSInteger hook_cellVM_viewMode(id self, SEL _cmd) {
@@ -424,6 +430,14 @@ static BOOL hook_cellVM_isReplayable(id self, SEL _cmd) {
         return YES;
     }
     return orig_cellVM_isReplayable ? orig_cellVM_isReplayable(self, _cmd) : NO;
+}
+
+static long long (*orig_cellVM_seenCount)(id self, SEL _cmd);
+static long long hook_cellVM_seenCount(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return 0;
+    }
+    return orig_cellVM_seenCount ? orig_cellVM_seenCount(self, _cmd) : 0;
 }
 
 // 5. IGDirectVisualMessageViewerController
@@ -503,6 +517,7 @@ void THRegisterPrivateVideoGhostHooks(void) {
         NullHookMessageIfPresent(vmClass, NSSelectorFromString(@"isExpired"), (void *)hook_vm_isExpired, &orig_vm_isExpired);
         NullHookMessageIfPresent(vmClass, NSSelectorFromString(@"canReplay"), (void *)hook_vm_canReplay, &orig_vm_canReplay);
         NullHookMessageIfPresent(vmClass, NSSelectorFromString(@"isReplayable"), (void *)hook_vm_isReplayable, &orig_vm_isReplayable);
+        NullHookMessageIfPresent(vmClass, NSSelectorFromString(@"seenCount"), (void *)hook_vm_seenCount, &orig_vm_seenCount);
     }
 
     // 4. IGDirectVisualMessageCellViewModel / bubble view model
@@ -516,5 +531,6 @@ void THRegisterPrivateVideoGhostHooks(void) {
         NullHookMessageIfPresent(cellVMClass, NSSelectorFromString(@"isExpired"), (void *)hook_cellVM_isExpired, &orig_cellVM_isExpired);
         NullHookMessageIfPresent(cellVMClass, NSSelectorFromString(@"canReplay"), (void *)hook_cellVM_canReplay, &orig_cellVM_canReplay);
         NullHookMessageIfPresent(cellVMClass, NSSelectorFromString(@"isReplayable"), (void *)hook_cellVM_isReplayable, &orig_cellVM_isReplayable);
+        NullHookMessageIfPresent(cellVMClass, NSSelectorFromString(@"seenCount"), (void *)hook_cellVM_seenCount, &orig_cellVM_seenCount);
     }
 }

@@ -464,10 +464,6 @@ static void processThreadUpdatesAndNeuterRemovals(id updates) {
 				continue;
 			}
 
-			// If reason is not 0 (unsend) and not -1 (unspecified), skip neutering
-			if (reason != 0 && reason != -1) {
-				continue;
-			}
 
 			// Check if any key was marked for delete-for-me
 			BOOL isDeleteForMe = NO;
