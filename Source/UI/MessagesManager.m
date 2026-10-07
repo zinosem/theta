@@ -70,7 +70,9 @@ NSString *const plistFileName = @"deleted_messages.plist";
     });
 
     if (ENABLED(@"Show Banners")) {
-        [ThetaHelper showToastWithTitle:@"Someone deleted a message." subtitle:nil icon:[ThetaHelper imageFromEmojiString:@"🗑️" width:60] autoHide:4 openURL:nil];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [ThetaHelper showToastWithTitle:@"Someone deleted a message." subtitle:nil icon:[ThetaHelper imageFromEmojiString:@"🗑️" width:60] autoHide:4 openURL:nil];
+        });
     }
 }
 
