@@ -48,7 +48,7 @@ static inline BOOL isBiometricOrPasscodeSet() {
 
     if (!self.settings) {
         self.settings = @[
-            @{@"title": @"Issue Loading Settings", @"detail": @"Please contact @zinosem on Discord/GitHub if you are seeing this message."},
+            @{@"title": @"Issue Loading Settings", @"detail": @"Please contact @zinosem on Discord if you are seeing this message."},
         ];
     }
 }

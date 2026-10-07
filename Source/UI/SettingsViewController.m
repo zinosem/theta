@@ -400,22 +400,12 @@ static UIColor *THColorFromHexString(NSString *hexString) {
 
     self.navigationController.navigationBar.tintColor = [ThetaHelper iotaPinkColor];
 
-    LinkItem *twitter = [LinkItem new];
-    twitter.title = @"Follow @zinosem on X";
-    twitter.linkDetail = @"Stay updated with the latest news and updates.";
-    twitter.urlString = @"https://x.com/zinosem";
-
-    LinkItem *github = [LinkItem new];
-    github.title = @"GitHub @zinosem";
-    github.linkDetail = @"Theta repository, updates and releases.";
-    github.urlString = @"https://github.com/zinosem/theta";
-
     LinkItem *discord = [LinkItem new];
     discord.title = @"Join the Discord Server";
     discord.linkDetail = @"Join the community for support and discussions.";
     discord.urlString = @"https://discord.gg/8b36UrNPEw";
 
-    self.linkItems = @[twitter, github, discord];
+    self.linkItems = @[discord];
 
     [self setupAnimatedTitle];
     [self setupVersionStrings];
