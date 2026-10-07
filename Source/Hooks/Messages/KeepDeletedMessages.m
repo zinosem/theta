@@ -1,10 +1,13 @@
 #import "Include/ThetaHelper.h"
 #import "Include/MessagesManager.h"
 #import <UIKit/UIKit.h>
+#import <objc/runtime.h>
 
 static char kThetaOriginalBackgroundColorKey;
 static char kThetaProcessedMessageIdKey;
 static char kThetaOverlayViewKey;
+
+#define THETA_DELETED_BADGE_TAG 77005
 
 static UIView *thetaFindMessageBubble(UIView *root) {
 	if (!root) return nil;
@@ -44,7 +47,6 @@ static UIView *thetaFindInnerTextMessageBubble(UIView *root) {
 	UIView *outer = thetaFindFirstSubviewOfClass(root, outerBubble) ?: root;
 	UIView *text = thetaFindFirstSubviewOfClass(outer, textBubble);
 	if (!text) {
-		// Sometimes the text bubble may be deeper under root
 		text = thetaFindFirstSubviewOfClass(root, textBubble);
 	}
 	if (!text) return nil;
@@ -52,30 +54,68 @@ static UIView *thetaFindInnerTextMessageBubble(UIView *root) {
 	return inner ?: nil;
 }
 
-static void (*orig_directMessageCell_configure)(id self, SEL _cmd, id viewModel, id specFactory, id launcher);
-static void hook_directMessageCell_configure(id self, SEL _cmd, id viewModel, id specFactory, id launcher) {
-	if (orig_directMessageCell_configure) orig_directMessageCell_configure(self, _cmd, viewModel, specFactory, launcher);
-	if (!ENABLED(@"Keep Deleted Messages")) return;
-	if (![viewModel conformsToProtocol:@protocol(IGDirectMessageViewModelProtocol)]) return;
+static NSString *thetaGetCellServerId(id cell) {
+	if (!cell) return nil;
+	@try {
+		Ivar vmIvar = class_getInstanceVariable([cell class], "_viewModel");
+		id vm = vmIvar ? object_getIvar(cell, vmIvar) : nil;
+		if (!vm && [cell respondsToSelector:@selector(viewModel)]) {
+			vm = [cell valueForKey:@"viewModel"];
+		}
+		if (!vm) return nil;
 
-	IGDirectUIMessageMetadata *metadata = [(id<IGDirectMessageViewModelProtocol>)viewModel messageMetadata];
-	NSString *serverId = metadata.key.serverId;
+		id meta = nil;
+		if ([vm respondsToSelector:@selector(messageMetadata)]) {
+			#pragma clang diagnostic push
+			#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+			meta = [vm performSelector:@selector(messageMetadata)];
+			#pragma clang diagnostic pop
+		} else {
+			@try { meta = [vm valueForKey:@"messageMetadata"]; } @catch (__unused id e) {}
+		}
+		if (!meta) return nil;
+
+		id keyObj = nil;
+		Ivar keyIvar = class_getInstanceVariable([meta class], "_key");
+		if (keyIvar) keyObj = object_getIvar(meta, keyIvar);
+		if (!keyObj) {
+			@try { keyObj = [meta valueForKey:@"key"]; } @catch (__unused id e) {}
+		}
+		if (!keyObj) return nil;
+
+		NSString *serverId = nil;
+		Ivar sidIvar = class_getInstanceVariable([keyObj class], "_serverId");
+		if (sidIvar) serverId = object_getIvar(keyObj, sidIvar);
+		if (!serverId) {
+			@try { serverId = [keyObj valueForKey:@"serverId"] ?: [keyObj valueForKey:@"_serverId"]; } @catch (__unused id e) {}
+		}
+		return [serverId isKindOfClass:[NSString class]] ? serverId : nil;
+	} @catch (__unused id e) {}
+	return nil;
+}
+
+static void thetaUpdateCellAppearance(id cell) {
+	if (!cell || ![cell isKindOfClass:[UIView class]]) return;
+	if (!ENABLED(@"Keep Deleted Messages")) return;
+
+	NSString *serverId = thetaGetCellServerId(cell);
 	if (serverId.length == 0) return;
 
+	BOOL isDeleted = [[MessagesManager sharedManager] messageExistsWithID:serverId];
+
 	UIView *container = nil;
-	if ([self respondsToSelector:@selector(contentViewForVisualMessageViewerPresentation)]) {
+	if ([cell respondsToSelector:@selector(contentViewForVisualMessageViewerPresentation)]) {
 		#pragma clang diagnostic push
 		#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-		container = [self performSelector:@selector(contentViewForVisualMessageViewerPresentation)];
+		container = [cell performSelector:@selector(contentViewForVisualMessageViewerPresentation)];
 		#pragma clang diagnostic pop
 	}
-	if (!container && [self respondsToSelector:@selector(contentView)]) {
-		container = [self valueForKey:@"contentView"];
+	if (!container && [cell respondsToSelector:@selector(contentView)]) {
+		@try { container = [cell valueForKey:@"contentView"]; } @catch (__unused id e) {}
 	}
-	if (!container && [self isKindOfClass:[UIView class]]) {
-		container = (UIView *)self;
+	if (!container) {
+		container = (UIView *)cell;
 	}
-	if (!container) return;
 
 	UIView *bubble = thetaFindInnerTextMessageBubble(container);
 	if (!bubble) bubble = thetaFindMessageBubble(container);
@@ -91,20 +131,13 @@ static void hook_directMessageCell_configure(id self, SEL _cmd, id viewModel, id
 		} @catch (__unused NSException *e) {}
 	}
 
-	NSString *processedServerId = objc_getAssociatedObject(bubble, &kThetaProcessedMessageIdKey);
-	if ([processedServerId isKindOfClass:[NSString class]] && [processedServerId isEqualToString:serverId]) {
-		return;
-	}
-
-	BOOL exists = [[MessagesManager sharedManager] messageExistsWithID:serverId];
 	UIColor *targetColor = nil;
-	if (exists) {
+	if (isDeleted) {
 		@try {
 			NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"Deleted Message Color_Color"];
-			if (!data) {
-				targetColor = [UIColor systemRedColor];
+			if (data) {
+				targetColor = [NSKeyedUnarchiver unarchivedObjectOfClass:[UIColor class] fromData:data error:nil];
 			}
-			targetColor = [NSKeyedUnarchiver unarchivedObjectOfClass:[UIColor class] fromData:data error:nil];
 		} @catch (__unused NSException *e) {}
 		if (!targetColor) targetColor = [UIColor systemRedColor];
 	} else if (originalBackgroundColor) {
@@ -113,36 +146,213 @@ static void hook_directMessageCell_configure(id self, SEL _cmd, id viewModel, id
 
 	if (targetColor) {
 		@try {
-			// 1) Attempt direct background set
+			// 1) Direct background set
 			[bubble setValue:targetColor forKey:@"backgroundColor"];
 			if ([bubble layer]) {
 				bubble.layer.backgroundColor = targetColor.CGColor;
 			}
-			// 2) Try tinting common shape layers that render the bubble
-			CALayer *layer = bubble.layer;
-			for (CALayer *sublayer in layer.sublayers ?: @[]) {
+			// 2) Shape layers tinting
+			for (CALayer *sublayer in bubble.layer.sublayers ?: @[]) {
 				if ([sublayer isKindOfClass:[CAShapeLayer class]]) {
 					((CAShapeLayer *)sublayer).fillColor = targetColor.CGColor;
 					((CAShapeLayer *)sublayer).backgroundColor = targetColor.CGColor;
 				}
 			}
-			// 3) Ensure a persistent visual using an overlay if needed
+			// 3) Overlay view for consistent styling
 			UIView *overlay = objc_getAssociatedObject(bubble, &kThetaOverlayViewKey);
-			if (!overlay) {
-				overlay = [[UIView alloc] initWithFrame:bubble.bounds];
-				overlay.userInteractionEnabled = NO;
-				overlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-				overlay.layer.cornerRadius = bubble.layer.cornerRadius;
-				overlay.layer.masksToBounds = YES;
-				objc_setAssociatedObject(bubble, &kThetaOverlayViewKey, overlay, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-				// Put behind content but inside bubble
-				[bubble insertSubview:overlay atIndex:0];
+			if (isDeleted) {
+				if (!overlay) {
+					overlay = [[UIView alloc] initWithFrame:bubble.bounds];
+					overlay.userInteractionEnabled = NO;
+					overlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+					overlay.layer.cornerRadius = bubble.layer.cornerRadius;
+					overlay.layer.masksToBounds = YES;
+					objc_setAssociatedObject(bubble, &kThetaOverlayViewKey, overlay, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+					[bubble insertSubview:overlay atIndex:0];
+				}
+				overlay.backgroundColor = targetColor;
+				overlay.hidden = NO;
+			} else {
+				if (overlay) overlay.hidden = YES;
 			}
-			overlay.backgroundColor = targetColor;
+
+			// 4) Visual badge indicator (Supprimé)
+			UILabel *badge = [bubble viewWithTag:THETA_DELETED_BADGE_TAG];
+			if (isDeleted) {
+				if (!badge) {
+					badge = [[UILabel alloc] init];
+					badge.tag = THETA_DELETED_BADGE_TAG;
+					badge.text = @" Supprimé ";
+					badge.font = [UIFont boldSystemFontOfSize:9];
+					badge.textColor = [UIColor whiteColor];
+					badge.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.45];
+					badge.layer.cornerRadius = 4;
+					badge.layer.masksToBounds = YES;
+					badge.translatesAutoresizingMaskIntoConstraints = NO;
+					[bubble addSubview:badge];
+					[NSLayoutConstraint activateConstraints:@[
+						[badge.trailingAnchor constraintEqualToAnchor:bubble.trailingAnchor constant:-4],
+						[badge.topAnchor constraintEqualToAnchor:bubble.topAnchor constant:2]
+					]];
+				}
+				badge.hidden = NO;
+				[bubble bringSubviewToFront:badge];
+			} else {
+				if (badge) badge.hidden = YES;
+			}
 		} @catch (__unused NSException *e) {}
 	}
+}
 
-	objc_setAssociatedObject(bubble, &kThetaProcessedMessageIdKey, serverId, OBJC_ASSOCIATION_COPY_NONATOMIC);
+static void thetaRefreshVisibleCellIndicators(void) {
+	Class cellClass = ThetaFirstClass(@[
+		@"_TtC19IGDirectMessageCell19IGDirectMessageCell",
+		@"IGDirectMessageCell"
+	]);
+	if (!cellClass) return;
+
+	UIWindow *window = nil;
+	for (UIWindow *w in [UIApplication sharedApplication].windows) {
+		if (w.isKeyWindow) { window = w; break; }
+	}
+	if (!window) window = [UIApplication sharedApplication].windows.firstObject;
+	if (!window) {
+		#pragma clang diagnostic push
+		#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+		window = [UIApplication sharedApplication].keyWindow;
+		#pragma clang diagnostic pop
+	}
+	if (!window) return;
+
+	NSMutableArray *stack = [NSMutableArray arrayWithObject:window];
+	while (stack.count > 0) {
+		UIView *v = stack.lastObject;
+		[stack removeLastObject];
+		if ([v isKindOfClass:cellClass]) {
+			thetaUpdateCellAppearance(v);
+			continue;
+		}
+		for (UIView *sub in v.subviews) {
+			[stack addObject:sub];
+		}
+	}
+}
+
+static void processThreadUpdatesAndNeuterRemovals(id updates) {
+	if (!updates) return;
+	NSArray *updateList = nil;
+	if ([updates isKindOfClass:[NSArray class]]) {
+		updateList = (NSArray *)updates;
+	} else {
+		updateList = @[updates];
+	}
+
+	BOOL preservedAny = NO;
+
+	for (id cacheThreadUpdate in updateList) {
+		NSArray *threadUpdates = nil;
+		@try {
+			if ([cacheThreadUpdate respondsToSelector:@selector(threadUpdates)]) {
+				#pragma clang diagnostic push
+				#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+				threadUpdates = [cacheThreadUpdate performSelector:@selector(threadUpdates)];
+				#pragma clang diagnostic pop
+			} else if ([cacheThreadUpdate respondsToSelector:@selector(valueForKey:)]) {
+				threadUpdates = [cacheThreadUpdate valueForKey:@"threadUpdates"];
+			}
+		} @catch (__unused NSException *e) {}
+
+		if (![threadUpdates isKindOfClass:[NSArray class]]) {
+			if (cacheThreadUpdate) {
+				threadUpdates = @[cacheThreadUpdate];
+			}
+		}
+
+		for (id threadUpdateObj in threadUpdates) {
+			id messageUpdate = nil;
+			@try {
+				if ([threadUpdateObj respondsToSelector:@selector(messageUpdate)]) {
+					#pragma clang diagnostic push
+					#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+					messageUpdate = [threadUpdateObj performSelector:@selector(messageUpdate)];
+					#pragma clang diagnostic pop
+				} else if ([threadUpdateObj respondsToSelector:@selector(valueForKey:)]) {
+					messageUpdate = [threadUpdateObj valueForKey:@"_messageUpdate"] ?: [threadUpdateObj valueForKey:@"messageUpdate"];
+				}
+			} @catch (__unused NSException *e) {}
+
+			if (!messageUpdate) {
+				messageUpdate = threadUpdateObj;
+			}
+
+			if (messageUpdate) {
+				NSArray *removeKeys = nil;
+				@try {
+					if ([messageUpdate respondsToSelector:@selector(removeMessages_messageKeys)]) {
+						#pragma clang diagnostic push
+						#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+						removeKeys = [messageUpdate performSelector:@selector(removeMessages_messageKeys)];
+						#pragma clang diagnostic pop
+					} else if ([messageUpdate respondsToSelector:@selector(valueForKey:)]) {
+						removeKeys = [messageUpdate valueForKey:@"_removeMessages_messageKeys"] ?: [messageUpdate valueForKey:@"removeMessages_messageKeys"];
+					}
+				} @catch (__unused NSException *e) {}
+
+				if (![removeKeys isKindOfClass:[NSArray class]] || removeKeys.count == 0) {
+					Ivar removeIvar = class_getInstanceVariable([messageUpdate class], "_removeMessages_messageKeys");
+					if (removeIvar) {
+						removeKeys = object_getIvar(messageUpdate, removeIvar);
+					}
+				}
+
+				if ([removeKeys isKindOfClass:[NSArray class]] && removeKeys.count > 0) {
+					for (id messageKey in removeKeys) {
+						NSString *serverId = nil;
+						@try {
+							serverId = [messageKey valueForKey:@"_messageServerId"];
+							if (!serverId) serverId = [messageKey valueForKey:@"serverId"];
+							if (!serverId) serverId = [messageKey valueForKey:@"_serverId"];
+						} @catch (__unused NSException *e) {}
+
+						if (!serverId) {
+							Ivar sidIvar = class_getInstanceVariable([messageKey class], "_messageServerId");
+							if (sidIvar) serverId = object_getIvar(messageKey, sidIvar);
+						}
+
+						if (serverId && [serverId isKindOfClass:[NSString class]] && serverId.length > 0) {
+							[[MessagesManager sharedManager] saveDeletedMessageWithID:serverId];
+							preservedAny = YES;
+						}
+					}
+
+					// NEUTER THE REMOVAL: Clear _removeMessages_messageKeys on messageUpdate so Instagram's applicator deletes nothing!
+					Ivar removeIvar = class_getInstanceVariable([messageUpdate class], "_removeMessages_messageKeys");
+					if (removeIvar) {
+						object_setIvar(messageUpdate, removeIvar, nil);
+					}
+					@try {
+						[messageUpdate setValue:nil forKey:@"_removeMessages_messageKeys"];
+					} @catch (__unused NSException *e) {}
+					@try {
+						[messageUpdate setValue:@[] forKey:@"_removeMessages_messageKeys"];
+					} @catch (__unused NSException *e) {}
+				}
+			}
+		}
+	}
+
+	if (preservedAny) {
+		dispatch_async(dispatch_get_main_queue(), ^{
+			thetaRefreshVisibleCellIndicators();
+		});
+	}
+}
+
+static void (*orig_directMessageCell_configure)(id self, SEL _cmd, id viewModel, id specFactory, id launcher);
+static void hook_directMessageCell_configure(id self, SEL _cmd, id viewModel, id specFactory, id launcher) {
+	if (orig_directMessageCell_configure) orig_directMessageCell_configure(self, _cmd, viewModel, specFactory, launcher);
+	if (!ENABLED(@"Keep Deleted Messages")) return;
+	thetaUpdateCellAppearance(self);
 }
 
 static void (*orig_messageCache3)(id self, SEL _cmd, id updates, id completion, id userAccess);
@@ -152,64 +362,46 @@ static void hook_messageCache3(id self, SEL _cmd, id updates, id completion, id 
 		return;
 	}
 
-	if (updates) {
-		@try {
-			id cacheThreadUpdate = nil;
-			if ([updates isKindOfClass:[NSArray class]] && [(NSArray *)updates count] > 0) {
-				cacheThreadUpdate = [(NSArray *)updates firstObject];
-			} else {
-				cacheThreadUpdate = updates;
-			}
-
-			id threadUpdates = nil;
-			if (cacheThreadUpdate && [cacheThreadUpdate respondsToSelector:@selector(valueForKey:)]) {
-				threadUpdates = [cacheThreadUpdate valueForKey:@"threadUpdates"];
-			}
-
-			id threadUpdateObj = nil;
-			if ([threadUpdates isKindOfClass:[NSArray class]] && [(NSArray *)threadUpdates count] > 0) {
-				threadUpdateObj = [(NSArray *)threadUpdates firstObject];
-			}
-
-			if (threadUpdateObj) {
-				id messageUpdate = [threadUpdateObj valueForKey:@"_messageUpdate"];
-				if (messageUpdate) {
-					NSArray *removeKeys = [messageUpdate valueForKey:@"_removeMessages_messageKeys"];
-					if ([removeKeys isKindOfClass:[NSArray class]]) {
-						for (id messageKey in removeKeys) {
-							NSString *serverId = nil;
-							@try {
-								serverId = [messageKey valueForKey:@"_messageServerId"];
-								if (!serverId) serverId = [messageKey valueForKey:@"serverId"];
-								if (!serverId) serverId = [messageKey valueForKey:@"_serverId"];
-							} @catch (__unused NSException *e) {}
-
-							if (serverId && [serverId isKindOfClass:[NSString class]] && serverId.length > 0) {
-								[[MessagesManager sharedManager] saveDeletedMessageWithID:serverId];
-							}
-						}
-					}
-				}
-			}
-		} @catch (NSException *e) {
-			NSLog(@"[Theta] Error accessing IGDirectThreadUpdate: %@", e);
-		}
+	@try {
+		processThreadUpdatesAndNeuterRemovals(updates);
+	} @catch (NSException *e) {
+		NSLog(@"[Theta] Error neutering thread updates (3-arg): %@", e);
 	}
 
-	// Always invoke original update so Instagram's internal cache state and completion block run normally
 	if (orig_messageCache3) orig_messageCache3(self, _cmd, updates, completion, userAccess);
+}
+
+static void (*orig_messageCache2)(id self, SEL _cmd, id updates, id completion);
+static void hook_messageCache2(id self, SEL _cmd, id updates, id completion) {
+	if (!ENABLED(@"Keep Deleted Messages")) {
+		if (orig_messageCache2) orig_messageCache2(self, _cmd, updates, completion);
+		return;
+	}
+
+	@try {
+		processThreadUpdatesAndNeuterRemovals(updates);
+	} @catch (NSException *e) {
+		NSLog(@"[Theta] Error neutering thread updates (2-arg): %@", e);
+	}
+
+	if (orig_messageCache2) orig_messageCache2(self, _cmd, updates, completion);
 }
 
 void THRegisterKeepDeletedMessagesHooks(void) {
 	Class applicator = objc_getClass("IGDirectCacheUpdatesApplicator");
-	NullHookMessageIfPresent(applicator, @selector(_applyThreadUpdates:completion:userAccess:), (void *)hook_messageCache3, &orig_messageCache3);
+	if (applicator) {
+		NullHookMessageIfPresent(applicator, @selector(_applyThreadUpdates:completion:userAccess:), (void *)hook_messageCache3, &orig_messageCache3);
+		NullHookMessageIfPresent(applicator, @selector(_applyThreadUpdates:completion:), (void *)hook_messageCache2, &orig_messageCache2);
+	}
 
 	Class messageCell = ThetaFirstClass(@[
 		@"_TtC19IGDirectMessageCell19IGDirectMessageCell",
 		@"IGDirectMessageCell"
 	]);
-	NullHookMessageIfPresent(messageCell,
-		@selector(configureWithViewModel:ringViewSpecFactory:launcherSet:),
-		(void *)hook_directMessageCell_configure,
-		&orig_directMessageCell_configure);
+	if (messageCell) {
+		NullHookMessageIfPresent(messageCell,
+			@selector(configureWithViewModel:ringViewSpecFactory:launcherSet:),
+			(void *)hook_directMessageCell_configure,
+			&orig_directMessageCell_configure);
+	}
 }
