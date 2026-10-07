@@ -400,12 +400,7 @@ static UIColor *THColorFromHexString(NSString *hexString) {
 
     self.navigationController.navigationBar.tintColor = [ThetaHelper iotaPinkColor];
 
-    LinkItem *discord = [LinkItem new];
-    discord.title = @"Join the Discord Server";
-    discord.linkDetail = @"Join the community for support and discussions.";
-    discord.urlString = @"https://discord.gg/8b36UrNPEw";
-
-    self.linkItems = @[discord];
+    self.linkItems = @[];
 
     [self setupAnimatedTitle];
     [self setupVersionStrings];
@@ -1270,7 +1265,7 @@ didOutputMetadataObjects:(NSArray<__kindof AVMetadataObject *> *)metadataObjects
     if (self.isSearchingSettings) {
         return 1;
     }
-    return 2; // SubMenus + Links
+    return self.linkItems.count > 0 ? 2 : 1;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
@@ -1279,7 +1274,7 @@ didOutputMetadataObjects:(NSArray<__kindof AVMetadataObject *> *)metadataObjects
     }
     if (section == 0) {
         return self.filteredSubMenus.count;
-    } else if (section == 1) {
+    } else if (section == 1 && self.linkItems.count > 0) {
         return self.linkItems.count;
     }
     return 0;
@@ -1811,7 +1806,8 @@ didOutputMetadataObjects:(NSArray<__kindof AVMetadataObject *> *)metadataObjects
         return nil; // No footer when searching
     }
     
-    if (section == 1) { // LinkItems section
+    NSInteger footerSection = (self.linkItems.count > 0) ? 1 : 0;
+    if (section == footerSection) {
         UIView *footerView = [[UIView alloc] init];
         footerView.backgroundColor = [UIColor clearColor];
         
@@ -1848,7 +1844,8 @@ didOutputMetadataObjects:(NSArray<__kindof AVMetadataObject *> *)metadataObjects
         return 0; // No footer when searching
     }
     
-    if (section == 1) { // LinkItems section
+    NSInteger footerSection = (self.linkItems.count > 0) ? 1 : 0;
+    if (section == footerSection) {
         return 60; // Height for the version footer
     }
     
@@ -1888,12 +1885,14 @@ didOutputMetadataObjects:(NSArray<__kindof AVMetadataObject *> *)metadataObjects
         NSArray *subMenuSettings = self.settingsBySubMenu[subMenu.title] ?: @[];
         subMenuViewController.settings = subMenuSettings;
         [self.navigationController pushViewController:subMenuViewController animated:YES];
-    } else if (indexPath.section == 1) {
+    } else if (indexPath.section == 1 && self.linkItems.count > 0) {
         // Link tap
-        LinkItem *link = self.linkItems[indexPath.row];
-        NSURL *url = [NSURL URLWithString:link.urlString];
-        if (url) {
-            [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+        if (indexPath.row < (NSInteger)self.linkItems.count) {
+            LinkItem *link = self.linkItems[indexPath.row];
+            NSURL *url = [NSURL URLWithString:link.urlString];
+            if (url) {
+                [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+            }
         }
     }
 }

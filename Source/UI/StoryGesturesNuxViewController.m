@@ -88,7 +88,7 @@
 	// Rows: icon + labels
 	NSArray<NSArray<NSString *> *> *rows = @[
 		@[@"hand.point.up.left.fill", @"Opening Theta's settings.", @"Long press the home tab."],
-        @[@"exclamationmark.triangle", @"Reporting bugs/issues.", @"Submit bugs in the Discord."],
+        @[@"gearshape.fill", @"Theta Settings.", @"Customize all features in Theta settings."],
         @[@"face.smiling", @"Be sure to have fun!", @"Make the most of Theta!"]
 	];
 
