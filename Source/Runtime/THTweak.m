@@ -8,7 +8,8 @@ static void InitializeHooks(void) {
 
     [[NSUserDefaults standardUserDefaults] registerDefaults:@{
         @"Screenshot Suppression_Enabled": @YES,
-        @"Seen Receipts Stay Local_Enabled": @YES
+        @"Seen Receipts Stay Local_Enabled": @YES,
+        @"Unlimited Replay Disappearing Media_Enabled": @YES
     }];
 
     THRegisterStoryAutoAdvanceHooks();

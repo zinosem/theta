@@ -190,6 +190,7 @@ static UIColor *THColorFromHexString(NSString *hexString) {
             @{@"title": @"Seen On React", @"detail": @"Mark messages as seen when reacting."},
             @{@"title": @"Seen On Send", @"detail": @"Mark messages as seen when sending."},
             @{@"title": @"Private Media Ghost", @"detail": @"Manually mark photos/videos in DMs as seen."},
+            @{@"title": @"Unlimited Replay Disappearing Media", @"detail": @"Replay view-once photos and videos indefinitely.", @"info": @"When enabled, view-once photos and videos in DMs will not expire after being opened. The sender will see that you opened the media, but you will still be able to replay and view it again anytime."},
             @{@"title": @"Disappearing DM Confirmation", @"detail": @"Confirm disappearing messages.", @"info": @"When enabled and swiping up in a DM to toggle disappearing messages, a confirmation will be asked before enabling/disabling disappearing messages."},
             @{@"title": @"Hide \"Create Group\" Button", @"detail": @"Hides the Create Group button.", @"info": @"When selecting multiple recipients to send a post/reel to, the Create Group button will be hidden."},
             @{@"title": @"Create Group Confirmation", @"detail": @"Asks before creating a group.", @"info": @"When selecting multiple recipients to send a post/reel to, a confirmation will be asked before creating a group."},

@@ -246,9 +246,269 @@ static void hook_visualmsgghost_layoutSubviews(IGDirectVisualMessageViewerContro
     } @catch (__unused NSException *e) {}
 }
 
+#pragma mark - Unlimited Replay Disappearing Media (Infinite View-Once Replay)
+
+// 1. IGDirectVisualMessage
+static NSInteger (*orig_msg_viewMode)(id self, SEL _cmd);
+static NSInteger hook_msg_viewMode(id self, SEL _cmd) {
+    NSInteger mode = orig_msg_viewMode ? orig_msg_viewMode(self, _cmd) : 0;
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        if (mode == 0) return 1; // 0 = View Once -> 1 = Replayable
+    }
+    return mode;
+}
+
+static BOOL (*orig_msg_isViewOnce)(id self, SEL _cmd);
+static BOOL hook_msg_isViewOnce(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return NO;
+    }
+    return orig_msg_isViewOnce ? orig_msg_isViewOnce(self, _cmd) : NO;
+}
+
+static BOOL (*orig_msg_isExpired)(id self, SEL _cmd);
+static BOOL hook_msg_isExpired(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return NO;
+    }
+    return orig_msg_isExpired ? orig_msg_isExpired(self, _cmd) : NO;
+}
+
+static BOOL (*orig_msg_hasExpired)(id self, SEL _cmd);
+static BOOL hook_msg_hasExpired(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return NO;
+    }
+    return orig_msg_hasExpired ? orig_msg_hasExpired(self, _cmd) : NO;
+}
+
+static BOOL (*orig_msg_canReplay)(id self, SEL _cmd);
+static BOOL hook_msg_canReplay(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return YES;
+    }
+    return orig_msg_canReplay ? orig_msg_canReplay(self, _cmd) : NO;
+}
+
+static BOOL (*orig_msg_isReplayable)(id self, SEL _cmd);
+static BOOL hook_msg_isReplayable(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return YES;
+    }
+    return orig_msg_isReplayable ? orig_msg_isReplayable(self, _cmd) : NO;
+}
+
+static long long (*orig_msg_seenCount)(id self, SEL _cmd);
+static long long hook_msg_seenCount(id self, SEL _cmd) {
+    long long count = orig_msg_seenCount ? orig_msg_seenCount(self, _cmd) : 0;
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        if (count > 1) return 1;
+    }
+    return count;
+}
+
+// 2. IGDirectVisualMediaInfo
+static NSInteger (*orig_mediaInfo_viewMode)(id self, SEL _cmd);
+static NSInteger hook_mediaInfo_viewMode(id self, SEL _cmd) {
+    NSInteger mode = orig_mediaInfo_viewMode ? orig_mediaInfo_viewMode(self, _cmd) : 0;
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        if (mode == 0) return 1;
+    }
+    return mode;
+}
+
+static BOOL (*orig_mediaInfo_isViewOnce)(id self, SEL _cmd);
+static BOOL hook_mediaInfo_isViewOnce(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return NO;
+    }
+    return orig_mediaInfo_isViewOnce ? orig_mediaInfo_isViewOnce(self, _cmd) : NO;
+}
+
+static BOOL (*orig_mediaInfo_isExpired)(id self, SEL _cmd);
+static BOOL hook_mediaInfo_isExpired(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return NO;
+    }
+    return orig_mediaInfo_isExpired ? orig_mediaInfo_isExpired(self, _cmd) : NO;
+}
+
+static BOOL (*orig_mediaInfo_canReplay)(id self, SEL _cmd);
+static BOOL hook_mediaInfo_canReplay(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return YES;
+    }
+    return orig_mediaInfo_canReplay ? orig_mediaInfo_canReplay(self, _cmd) : NO;
+}
+
+static long long (*orig_mediaInfo_seenCount)(id self, SEL _cmd);
+static long long hook_mediaInfo_seenCount(id self, SEL _cmd) {
+    long long count = orig_mediaInfo_seenCount ? orig_mediaInfo_seenCount(self, _cmd) : 0;
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        if (count > 1) return 1;
+    }
+    return count;
+}
+
+// 3. IGDirectVisualMessageViewModel
+static NSInteger (*orig_vm_viewMode)(id self, SEL _cmd);
+static NSInteger hook_vm_viewMode(id self, SEL _cmd) {
+    NSInteger mode = orig_vm_viewMode ? orig_vm_viewMode(self, _cmd) : 0;
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        if (mode == 0) return 1;
+    }
+    return mode;
+}
+
+static BOOL (*orig_vm_isViewOnce)(id self, SEL _cmd);
+static BOOL hook_vm_isViewOnce(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return NO;
+    }
+    return orig_vm_isViewOnce ? orig_vm_isViewOnce(self, _cmd) : NO;
+}
+
+static BOOL (*orig_vm_isExpired)(id self, SEL _cmd);
+static BOOL hook_vm_isExpired(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return NO;
+    }
+    return orig_vm_isExpired ? orig_vm_isExpired(self, _cmd) : NO;
+}
+
+static BOOL (*orig_vm_canReplay)(id self, SEL _cmd);
+static BOOL hook_vm_canReplay(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return YES;
+    }
+    return orig_vm_canReplay ? orig_vm_canReplay(self, _cmd) : NO;
+}
+
+static BOOL (*orig_vm_isReplayable)(id self, SEL _cmd);
+static BOOL hook_vm_isReplayable(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return YES;
+    }
+    return orig_vm_isReplayable ? orig_vm_isReplayable(self, _cmd) : NO;
+}
+
+// 4. IGDirectVisualMessageCellViewModel
+static NSInteger (*orig_cellVM_viewMode)(id self, SEL _cmd);
+static NSInteger hook_cellVM_viewMode(id self, SEL _cmd) {
+    NSInteger mode = orig_cellVM_viewMode ? orig_cellVM_viewMode(self, _cmd) : 0;
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        if (mode == 0) return 1;
+    }
+    return mode;
+}
+
+static BOOL (*orig_cellVM_isExpired)(id self, SEL _cmd);
+static BOOL hook_cellVM_isExpired(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return NO;
+    }
+    return orig_cellVM_isExpired ? orig_cellVM_isExpired(self, _cmd) : NO;
+}
+
+static BOOL (*orig_cellVM_canReplay)(id self, SEL _cmd);
+static BOOL hook_cellVM_canReplay(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return YES;
+    }
+    return orig_cellVM_canReplay ? orig_cellVM_canReplay(self, _cmd) : NO;
+}
+
+static BOOL (*orig_cellVM_isReplayable)(id self, SEL _cmd);
+static BOOL hook_cellVM_isReplayable(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return YES;
+    }
+    return orig_cellVM_isReplayable ? orig_cellVM_isReplayable(self, _cmd) : NO;
+}
+
+// 5. IGDirectVisualMessageViewerController
+static BOOL (*orig_viewer_canReplay)(id self, SEL _cmd);
+static BOOL hook_viewer_canReplay(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return YES;
+    }
+    return orig_viewer_canReplay ? orig_viewer_canReplay(self, _cmd) : NO;
+}
+
+static BOOL (*orig_viewer_isReplayable)(id self, SEL _cmd);
+static BOOL hook_viewer_isReplayable(id self, SEL _cmd) {
+    if (ENABLED(@"Unlimited Replay Disappearing Media")) {
+        return YES;
+    }
+    return orig_viewer_isReplayable ? orig_viewer_isReplayable(self, _cmd) : NO;
+}
+
 void THRegisterPrivateVideoGhostHooks(void) {
-    NullHookMessageEx(objc_getClass("IGDirectVisualMessageViewerController"), @selector(viewDidLoad), (void *)hook_visualmsgghostbuttons, &orig_visualmsgghostbuttons);
-    NullHookMessageEx(objc_getClass("IGDirectVisualMessageViewerController"), @selector(viewDidLayoutSubviews), (void *)hook_visualmsgghost_layoutSubviews, &orig_visualmsgghost_layoutSubviews);
-    NullHookMessageEx(objc_getClass("IGDirectVisualMessageViewerController"), @selector(storyPlayerMediaViewDidPlay:), (void *)hook_visualmsgghostvideo, &orig_visualmsgghostvideo);
-    NullHookMessageEx(objc_getClass("IGStoryPhotoView"), @selector(progressImageView:didLoadImage:loadSource:networkRequestSummary:), (void *)hook_visualmsgghostphoto, &orig_visualmsgghostphoto);
+    Class viewerClass = objc_getClass("IGDirectVisualMessageViewerController");
+    if (viewerClass) {
+        NullHookMessageEx(viewerClass, @selector(viewDidLoad), (void *)hook_visualmsgghostbuttons, &orig_visualmsgghostbuttons);
+        NullHookMessageEx(viewerClass, @selector(viewDidLayoutSubviews), (void *)hook_visualmsgghost_layoutSubviews, &orig_visualmsgghost_layoutSubviews);
+        NullHookMessageEx(viewerClass, @selector(storyPlayerMediaViewDidPlay:), (void *)hook_visualmsgghostvideo, &orig_visualmsgghostvideo);
+        NullHookMessageIfPresent(viewerClass, NSSelectorFromString(@"canReplay"), (void *)hook_viewer_canReplay, &orig_viewer_canReplay);
+        NullHookMessageIfPresent(viewerClass, NSSelectorFromString(@"isReplayable"), (void *)hook_viewer_isReplayable, &orig_viewer_isReplayable);
+    }
+
+    Class photoViewClass = objc_getClass("IGStoryPhotoView");
+    if (photoViewClass) {
+        NullHookMessageEx(photoViewClass, @selector(progressImageView:didLoadImage:loadSource:networkRequestSummary:), (void *)hook_visualmsgghostphoto, &orig_visualmsgghostphoto);
+    }
+
+    // 1. IGDirectVisualMessage
+    Class msgClass = ThetaFirstClass(@[
+        @"IGDirectVisualMessage",
+        @"_TtC16IGDirectEntities21IGDirectVisualMessage"
+    ]);
+    if (msgClass) {
+        NullHookMessageIfPresent(msgClass, NSSelectorFromString(@"viewMode"), (void *)hook_msg_viewMode, &orig_msg_viewMode);
+        NullHookMessageIfPresent(msgClass, NSSelectorFromString(@"isViewOnce"), (void *)hook_msg_isViewOnce, &orig_msg_isViewOnce);
+        NullHookMessageIfPresent(msgClass, NSSelectorFromString(@"isExpired"), (void *)hook_msg_isExpired, &orig_msg_isExpired);
+        NullHookMessageIfPresent(msgClass, NSSelectorFromString(@"hasExpired"), (void *)hook_msg_hasExpired, &orig_msg_hasExpired);
+        NullHookMessageIfPresent(msgClass, NSSelectorFromString(@"canReplay"), (void *)hook_msg_canReplay, &orig_msg_canReplay);
+        NullHookMessageIfPresent(msgClass, NSSelectorFromString(@"isReplayable"), (void *)hook_msg_isReplayable, &orig_msg_isReplayable);
+        NullHookMessageIfPresent(msgClass, NSSelectorFromString(@"seenCount"), (void *)hook_msg_seenCount, &orig_msg_seenCount);
+    }
+
+    // 2. IGDirectVisualMediaInfo / IGDirectVisualMedia
+    Class mediaInfoClass = ThetaFirstClass(@[
+        @"IGDirectVisualMediaInfo",
+        @"IGDirectVisualMedia"
+    ]);
+    if (mediaInfoClass) {
+        NullHookMessageIfPresent(mediaInfoClass, NSSelectorFromString(@"viewMode"), (void *)hook_mediaInfo_viewMode, &orig_mediaInfo_viewMode);
+        NullHookMessageIfPresent(mediaInfoClass, NSSelectorFromString(@"isViewOnce"), (void *)hook_mediaInfo_isViewOnce, &orig_mediaInfo_isViewOnce);
+        NullHookMessageIfPresent(mediaInfoClass, NSSelectorFromString(@"isExpired"), (void *)hook_mediaInfo_isExpired, &orig_mediaInfo_isExpired);
+        NullHookMessageIfPresent(mediaInfoClass, NSSelectorFromString(@"canReplay"), (void *)hook_mediaInfo_canReplay, &orig_mediaInfo_canReplay);
+        NullHookMessageIfPresent(mediaInfoClass, NSSelectorFromString(@"seenCount"), (void *)hook_mediaInfo_seenCount, &orig_mediaInfo_seenCount);
+    }
+
+    // 3. IGDirectVisualMessageViewModel
+    Class vmClass = ThetaFirstClass(@[
+        @"IGDirectVisualMessageViewModel",
+        @"_TtC25IGDirectVisualMessageUI31IGDirectVisualMessageViewModel"
+    ]);
+    if (vmClass) {
+        NullHookMessageIfPresent(vmClass, NSSelectorFromString(@"viewMode"), (void *)hook_vm_viewMode, &orig_vm_viewMode);
+        NullHookMessageIfPresent(vmClass, NSSelectorFromString(@"isViewOnce"), (void *)hook_vm_isViewOnce, &orig_vm_isViewOnce);
+        NullHookMessageIfPresent(vmClass, NSSelectorFromString(@"isExpired"), (void *)hook_vm_isExpired, &orig_vm_isExpired);
+        NullHookMessageIfPresent(vmClass, NSSelectorFromString(@"canReplay"), (void *)hook_vm_canReplay, &orig_vm_canReplay);
+        NullHookMessageIfPresent(vmClass, NSSelectorFromString(@"isReplayable"), (void *)hook_vm_isReplayable, &orig_vm_isReplayable);
+    }
+
+    // 4. IGDirectVisualMessageCellViewModel / bubble view model
+    Class cellVMClass = ThetaFirstClass(@[
+        @"IGDirectVisualMessageCellViewModel",
+        @"IGDirectVisualMessageBubbleViewModel",
+        @"IGDirectVisualMessageActivityViewModel"
+    ]);
+    if (cellVMClass) {
+        NullHookMessageIfPresent(cellVMClass, NSSelectorFromString(@"viewMode"), (void *)hook_cellVM_viewMode, &orig_cellVM_viewMode);
+        NullHookMessageIfPresent(cellVMClass, NSSelectorFromString(@"isExpired"), (void *)hook_cellVM_isExpired, &orig_cellVM_isExpired);
+        NullHookMessageIfPresent(cellVMClass, NSSelectorFromString(@"canReplay"), (void *)hook_cellVM_canReplay, &orig_cellVM_canReplay);
+        NullHookMessageIfPresent(cellVMClass, NSSelectorFromString(@"isReplayable"), (void *)hook_cellVM_isReplayable, &orig_cellVM_isReplayable);
+    }
 }
